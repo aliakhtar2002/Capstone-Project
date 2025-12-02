@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "🚀 Deploying CyberPulse SOC Infrastructure..."
+echo " Deploying CyberPulse SOC Infrastructure..."
 
 # Update system
 echo "Updating system packages..."
