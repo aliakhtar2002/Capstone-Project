@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Elasticsearch - The Database Brain (UPDATED FOR BACKUPS)
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
     container_name: cyberpulse-elasticsearch
@@ -11,14 +10,9 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
-    volumes:
-      - ./elasticsearch_data:/usr/share/elasticsearch/data
-      - ./elasticsearch_backups:/usr/share/elasticsearch/backups
-      - ./elasticsearch_config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
     networks:
       - cyberpulse-net
 
-  # Kibana - The Dashboard Interface (ALREADY CORRECT)
   kibana:
     image: docker.elastic.co/kibana/kibana:7.10.2
     container_name: cyberpulse-kibana
@@ -31,7 +25,6 @@ services:
     depends_on:
       - elasticsearch
 
-  # Logstash - The Data Processing Engine
   logstash:
     image: docker.elastic.co/logstash/logstash:7.10.2
     container_name: cyberpulse-logstash
