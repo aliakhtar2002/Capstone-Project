@@ -8,13 +8,13 @@ def test_health_endpoint():
         print("Testing /api/health...")
         response = requests.get(f"{BASE_URL}/api/health")
         if response.status_code == 200:
-            print("✅ Health endpoint working")
+            print("Health endpoint working")
             return True
         else:
-            print(f"❌ Health endpoint failed: {response.status_code}")
+            print(f" Health endpoint failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Health endpoint error: {e}")
+        print(f" Health endpoint error: {e}")
         return False
 
 def test_detection_post():
@@ -27,13 +27,13 @@ def test_detection_post():
         }
         response = requests.post(f"{BASE_URL}/api/detections", json=test_data)
         if response.status_code == 200:
-            print("✅ Detection POST working")
+            print(" Detection POST working")
             return True
         else:
-            print(f"❌ Detection POST failed: {response.status_code}")
+            print(f" Detection POST failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Detection POST error: {e}")
+        print(f" Detection POST error: {e}")
         return False
 
 def test_security_events():
@@ -41,13 +41,13 @@ def test_security_events():
         print("Testing /api/security-events...")
         response = requests.get(f"{BASE_URL}/api/security-events")
         if response.status_code == 200:
-            print("✅ Security events endpoint working")
+            print("Security events endpoint working")
             return True
         else:
-            print(f"❌ Security events failed: {response.status_code}")
+            print(f" Security events failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Security events error: {e}")
+        print(f" Security events error: {e}")
         return False
 
 def test_dashboard_stats():
@@ -55,13 +55,13 @@ def test_dashboard_stats():
         print("Testing /api/dashboard/stats...")
         response = requests.get(f"{BASE_URL}/api/dashboard/stats")
         if response.status_code == 200:
-            print("✅ Dashboard stats working")
+            print(" Dashboard stats working")
             return True
         else:
-            print(f"❌ Dashboard stats failed: {response.status_code}")
+            print(f" Dashboard stats failed: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Dashboard stats error: {e}")
+        print(f" Dashboard stats error: {e}")
         return False
 
 if __name__ == "__main__":
@@ -84,4 +84,4 @@ if __name__ == "__main__":
     if passed == len(tests):
         print("🎉 All tests passed!")
     else:
-        print("❌ Some tests failed")
+        print(" Some tests failed")
