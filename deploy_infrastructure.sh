@@ -40,5 +40,5 @@ echo "Flask==2.3.3" > ~/cyberpulse/api/requirements.txt
 echo "psycopg2-binary==2.9.7" >> ~/cyberpulse/api/requirements.txt
 echo "requests==2.31.0" >> ~/cyberpulse/api/requirements.txt
 
-echo "✅ Infrastructure deployment script ready!"
+echo " Infrastructure deployment script ready!"
 echo "Run './deploy_infrastructure.sh' to deploy"
