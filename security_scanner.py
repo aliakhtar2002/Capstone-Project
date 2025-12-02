@@ -3,7 +3,7 @@ import subprocess
 import requests
 
 def check_api_security():
-    print("🔒 Scanning API Security...")
+    print(" Scanning API Security...")
     
     # Test if debug mode is enabled
     response = requests.get('http://localhost:5000/api/health')
