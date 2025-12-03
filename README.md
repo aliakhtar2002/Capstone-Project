@@ -1,33 +1,16 @@
-# CyberPulse SOC Integration - Ali Akhtar
-## Final Deliverables Package
+# CyberPulse Project Overview
+CyberPulse is a real-time virtual Security Operations Center (SOC) prototype designed to visualize, detect, and respond to cyber threats as they occur. The system integrates attack simulation, automated detection rules, and a centralized interactive dashboard to provide an end-to-end security monitoring experience.
 
-### Completed Work:
-1. **AAL1** - Threat Modeling & STRIDE Analysis
-2. **AAL2 & AAL3** - Security Scanning & SAST Reports  
-3. **AAL4** - Test Audit & Validation
-4. **AAL5** - Release Packaging (This!)
-5. **AAL6** - Infrastructure Automation Scripts
-6. **AAL8** - Alerting & Monitoring System
-7. **AALSF4** - Notification Automation
+## Architecture Flow 
+1. **Victoria**: Victoria's Attack Simulation generates realistic threats using tools like Hydra, Nmap, and PowerShell.
+2. **Waad**: Waad's Detection Rules analyze the traffic, identifying malicious patterns and anomalies.
+3. **Aishat**: Aishat's Dashboard visualizes threats in real-time with interactive charts, geographic threat mapping, color-coded severity alerts, detailed security report generation (PDF/HTML/CSV), and IP blocking/unblocking capabilities.
+4. **Ali and Grishab**: Ali & Grishab's Infrastructure connects all components via APIs and data pipelines, ensuring seamless communication between attack simulations, detection, visualization, reporting, response, and management systems.
 
-### Key Features:
-- Flask REST API with 8+ endpoints
-- Automated security alerting
-- Real-time threat detection
-- IP blocking automation
-- Comprehensive testing suite
-- Infrastructure deployment scripts
+### Team Roles
+- Ali Akhtar: API infrastructure and system integration.
+- Aishat Arawole: Dashboard frontend with complete visualization, reporting, and management interface.
+- Waad Elkenin: Detection rule development and threat analysis logic.
+- Grishab Mishra: Data pipeline architecture and database management.
+- Victoria Omosowon: Attack simulation and penetration testing.
 
-### Files Included:
-- API source code (/api/)
-- Security scan reports
-- Test scripts and results
-- Deployment automation
-- Documentation
-
-### Verification:
-All endpoints tested and working:
-- Health checks
-- Detection ingestion  
-- Alert management
-- Dashboard integration
