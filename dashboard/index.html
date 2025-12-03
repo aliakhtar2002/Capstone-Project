@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberPulse Security Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --primary-bg: #0a0e14;
+            --card-bg: #151a21;
+            --accent-color: #2a9fd6;
+            --warning-color: #ff8800;
+            --danger-color: #cc0000;
+            --success-color: #77b300;
+            --text-color: #e6e6e6;
+            --border-color: #2d3746;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .dashboard-container {
+            display: none;
+            padding: 20px;
+        }
+
+        .landing-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background: linear-gradient(135deg, #0a0e14 0%, #1a2639 100%);
+        }
+
+        .cyber-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .cyber-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .severity-critical {
+            color: var(--danger-color);
+        }
+
+        .severity-warning {
+            color: var(--warning-color);
+        }
+
+        .severity-normal {
+            color: var(--success-color);
+        }
+
+        .btn-cyber {
+            background-color: var(--accent-color);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .btn-cyber:hover {
+            background-color: #2387b8;
+            transform: translateY(-2px);
+        }
+
+        .btn-outline-cyber {
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .btn-outline-cyber:hover {
+            background-color: rgba(42, 159, 214, 0.1);
+        }
+
+        .btn-block {
+            background-color: var(--danger-color);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .btn-block:hover {
+            background-color: #a00;
+            transform: translateY(-1px);
+        }
+
+        .btn-block:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .login-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .login-table th, .login-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .login-table th {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .date-filter {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+            width: 100%;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px;
+        }
+
+        .filter-label {
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: #8a8a8a;
+        }
+
+        .map-container {
+            height: 300px;
+            background-color: #1e2a3a;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .map-placeholder {
+            text-align: center;
+            color: #8a8a8a;
+        }
+
+        .map-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .navbar-cyber {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            font-weight: bold;
+            color: var(--accent-color);
+            font-size: 1.5rem;
+        }
+
+        .nav-tabs-cyber {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-tabs-cyber .nav-link {
+            color: var(--text-color);
+            border: none;
+            padding: 12px 20px;
+        }
+
+        .nav-tabs-cyber .nav-link.active {
+            background-color: var(--card-bg);
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .nav-tabs-cyber .nav-link:hover {
+            border: none;
+            color: var(--accent-color);
+        }
+
+        .tab-content {
+            padding-top: 20px;
+        }
+
+        .report-section {
+            margin-bottom: 30px;
+        }
+
+        .report-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .report-preview {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+            overflow-x: auto;
+        }
+
+        .report-content {
+            font-family: 'Times New Roman', Times, serif;
+            color: var(--text-color);
+            max-width: 100%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .report-content h4 {
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .report-content p, .report-content li {
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .report-content ul {
+            padding-left: 20px;
+        }
+
+        .report-placeholder {
+            text-align: center;
+            padding: 60px 20px;
+            color: #8a8a8a;
+        }
+
+        .report-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .events-table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .badge-critical {
+            background-color: var(--danger-color);
+        }
+
+        .badge-warning {
+            background-color: var(--warning-color);
+        }
+
+        .badge-normal {
+            background-color: var(--success-color);
+        }
+
+        .badge-unblocked {
+            background-color: #6c757d;
+        }
+
+        .blocked-ip {
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1055;
+        }
+
+        .cyber-toast {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .toast-success {
+            border-left-color: var(--success-color);
+        }
+
+        .toast-error {
+            border-left-color: var(--danger-color);
+        }
+
+        .unblocked-ip-row {
+            background-color: rgba(108, 117, 125, 0.1);
+        }
+
+        /* Report-specific styles */
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+
+        .report-table th, .report-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        .report-table th {
+            background-color: rgba(42, 159, 214, 0.2);
+            color: var(--accent-color);
+        }
+
+        .report-metric {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .report-section-title {
+            color: var(--accent-color);
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Landing Page -->
+    <div class="landing-page" id="landingPage">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <h1 class="display-4 mb-4">CyberPulse Security Dashboard</h1>
+                    <p class="lead mb-5">Advanced threat detection and response platform for real-time attack monitoring</p>
+                    <button class="btn btn-cyber btn-lg" onclick="startScan()">
+                        <i class="fas fa-shield-alt me-2"></i> Scan for Vulnerabilities
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard-container" id="dashboard">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-cyber">
+            <div class="container-fluid">
+                <a class="navbar-brand logo" href="#">
+                    <i class="fas fa-pulse me-2"></i>CyberPulse SOC Dashboard
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="switchTab('dashboard-tab')">Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="switchTab('reports-tab')">Reports</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="switchTab('blocked-ips-tab')">Blocked IPs</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="switchTab('unblocked-ips-tab')">Unblocked IPs</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid mt-4">
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs nav-tabs-cyber" id="dashboardTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" href="#dashboard-content">Security Dashboard</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="reports-tab" data-bs-toggle="tab" href="#reports-content">Generate Reports</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="blocked-ips-tab" data-bs-toggle="tab" href="#blocked-ips-content">Blocked IPs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="unblocked-ips-tab" data-bs-toggle="tab" href="#unblocked-ips-content">Unblocked IPs</a>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="dashboardTabContent">
+                <!-- Dashboard Tab -->
+                <div class="tab-pane fade show active" id="dashboard-content">
+                    <!-- Security Summary (AASF3) -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="cyber-card">
+                                <h3 class="cyber-header">Security Summary</h3>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="stat-card">
+                                            <div>Total Attacks</div>
+                                            <div class="stat-value" id="totalAttacks">0</div>
+                                            <div class="text-muted">Last 24 hours</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="stat-card">
+                                            <div>Failed Logins</div>
+                                            <div class="stat-value severity-critical" id="failedLogins">0</div>
+                                            <div class="text-muted">High risk</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="stat-card">
+                                            <div>Brute Force Attempts</div>
+                                            <div class="stat-value severity-warning" id="bruteForceAttempts">0</div>
+                                            <div class="text-muted">Medium risk</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="stat-card">
+                                            <div>Blocked IPs</div>
+                                            <div class="stat-value severity-warning" id="blockedIpsCount">0</div>
+                                            <div class="text-muted">Active blocks</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Range Filter (AASN1) - Updated Layout -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="cyber-card">
+                                <h5 class="cyber-header">Filter Security Events</h5>
+                                <div class="filter-row">
+                                    <div class="filter-group">
+                                        <span class="filter-label">Start Date</span>
+                                        <input type="datetime-local" class="date-filter" id="startDate">
+                                    </div>
+                                    <div class="filter-group">
+                                        <span class="filter-label">End Date</span>
+                                        <input type="datetime-local" class="date-filter" id="endDate">
+                                    </div>
+                                    <div class="filter-group">
+                                        <span class="filter-label">Severity</span>
+                                        <select class="date-filter" id="severityFilter">
+                                            <option value="all">All Severities</option>
+                                            <option value="critical">Critical</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="normal">Normal</option>
+                                        </select>
+                                    </div>
+                                    <div class="filter-group">
+                                        <span class="filter-label">Event Type</span>
+                                        <select class="date-filter" id="eventTypeFilter">
+                                            <option value="all">All Events</option>
+                                            <option value="failed-login">Failed Login</option>
+                                            <option value="brute-force">Brute Force</option>
+                                            <option value="ssh-anomaly">SSH Anomaly</option>
+                                            <option value="powershell-abuse">PowerShell Abuse</option>
+                                            <option value="port-scan">Port Scan</option>
+                                        </select>
+                                    </div>
+                                    <div class="filter-group" style="align-self: flex-end;">
+                                        <button class="btn btn-cyber" onclick="applyFilters()">Apply Filters</button>
+                                        <button class="btn btn-outline-cyber mt-2" onclick="resetFilters()">Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Left Column -->
+                        <div class="col-md-8">
+                            <!-- Login Charts (AASF1, AASF2) -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="cyber-card">
+                                        <h5 class="cyber-header">Failed Logins Per Hour</h5>
+                                        <div class="chart-container">
+                                            <canvas id="failedLoginsChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="cyber-card">
+                                        <h5 class="cyber-header">Successful Logins Per Hour</h5>
+                                        <div class="chart-container">
+                                            <canvas id="successfulLoginsChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Detected Security Events Table -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="cyber-card">
+                                        <h5 class="cyber-header">Detected Security Events</h5>
+                                        <div class="events-table-container">
+                                            <table class="login-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Time</th>
+                                                        <th>IP Address</th>
+                                                        <th>Username</th>
+                                                        <th>Event Type</th>
+                                                        <th>Severity</th>
+                                                        <th>Source</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="securityEventsTable">
+                                                    <!-- Security events will be populated here -->
+                                                    <tr>
+                                                        <td colspan="7" class="text-center py-4">No security events detected yet</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div class="col-md-4">
+                            <!-- Severity Levels (AASF5) -->
+                            <div class="cyber-card mb-4">
+                                <h5 class="cyber-header">Severity Level</h5>
+                                <div class="chart-container">
+                                    <canvas id="severityChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Geographic Threat Mapping (AASF4) -->
+                            <div class="cyber-card">
+                                <h5 class="cyber-header">Geographic Threat Mapping</h5>
+                                <div class="map-container">
+                                    <div class="map-placeholder">
+                                        <i class="fas fa-globe-americas"></i>
+                                        <p>Threat visualization map would appear here</p>
+                                        <p class="small">IP locations and frequency visualization</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <h6>Top IP Addresses</h6>
+                                    <div class="chart-container">
+                                        <canvas id="ipFrequencyChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div class="tab-pane fade" id="reports-content">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="cyber-card">
+                                <h3 class="cyber-header">Generate Security Reports</h3>
+
+                                <!-- Report Configuration -->
+                                <div class="report-section">
+                                    <h5>Report Configuration</h5>
+                                    <div class="report-controls">
+                                        <div>
+                                            <label class="form-label">Report Type</label>
+                                            <select class="form-select date-filter" id="reportType">
+                                                <option value="Summary">Security Summary</option>
+                                                <option value="Detailed">Detailed Analysis</option>
+                                                <option value="Compliance">Compliance Report</option>
+                                                <option value="Threat">Threat Intelligence</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="form-label">Time Period</label>
+                                            <select class="form-select date-filter" id="reportPeriod">
+                                                <option value="24hr">Last 24 Hours</option>
+                                                <option value="7d">Last 7 Days</option>
+                                                <option value="30d">Last 30 Days</option>
+                                                <option value="custom">Custom Range</option>
+                                            </select>
+                                        </div>
+
+                                        <div id="customDateRange" style="display: none;">
+                                            <label class="form-label">Custom Range</label>
+                                            <div class="d-flex align-items-center">
+                                                <input type="date" class="date-filter me-2" id="customStartDate">
+                                                <span class="me-2">to</span>
+                                                <input type="date" class="date-filter" id="customEndDate">
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="form-label">Format</label>
+                                            <select class="form-select date-filter" id="reportFormat">
+                                                <option value="pdf">PDF</option>
+                                                <option value="html">HTML</option>
+                                                <option value="csv">CSV</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <button class="btn btn-cyber me-2" onclick="generateReport()">
+                                            <i class="fas fa-file-pdf me-2"></i>Generate Report
+                                        </button>
+                                        <button class="btn btn-outline-cyber" onclick="previewReport()">
+                                            <i class="fas fa-eye me-2"></i>Preview
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Report Preview -->
+                                <div class="report-section">
+                                    <h5>Report Preview</h5>
+                                    <div class="report-preview">
+                                        <div class="report-placeholder" id="reportPlaceholder">
+                                            <i class="fas fa-file-alt"></i>
+                                            <p>No report generated yet</p>
+                                            <p class="small">Configure your report settings and click "Generate Report"</p>
+                                        </div>
+                                        <div id="reportContent" class="report-content" style="display: none;">
+                                            <!-- Report content will be generated here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blocked IPs Tab -->
+                <div class="tab-pane fade" id="blocked-ips-content">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="cyber-card">
+                                <h3 class="cyber-header">Blocked IP Addresses</h3>
+                                <div class="mb-3">
+                                    <button class="btn btn-outline-cyber" onclick="clearAllBlocks()">
+                                        <i class="fas fa-trash me-2"></i>Clear All Blocks
+                                    </button>
+                                </div>
+                                <div class="events-table-container">
+                                    <table class="login-table">
+                                        <thead>
+                                            <tr>
+                                                <th>IP Address</th>
+                                                <th>Blocked At</th>
+                                                <th>Reason</th>
+                                                <th>Events Count</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="blockedIpsTable">
+                                            <!-- Blocked IPs will be populated here -->
+                                            <tr>
+                                                <td colspan="5" class="text-center py-4">No IP addresses blocked yet</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unblocked IPs Tab -->
+                <div class="tab-pane fade" id="unblocked-ips-content">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="cyber-card">
+                                <h3 class="cyber-header">Unblocked IP Addresses</h3>
+                                <div class="mb-3">
+                                    <button class="btn btn-outline-cyber" onclick="clearUnblockedHistory()">
+                                        <i class="fas fa-trash me-2"></i>Clear Unblocked History
+                                    </button>
+                                </div>
+                                <div class="events-table-container">
+                                    <table class="login-table">
+                                        <thead>
+                                            <tr>
+                                                <th>IP Address</th>
+                                                <th>Originally Blocked</th>
+                                                <th>Unblocked At</th>
+                                                <th>Reason</th>
+                                                <th>Events Count</th>
+                                                <th>Block Duration</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="unblockedIpsTable">
+                                            <!-- Unblocked IPs will be populated here -->
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">No IP addresses have been unblocked yet</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let blockedIPs = [];
+        let unblockedIPs = [];
+        let securityEvents = [];
+        let loginStats = {
+            failedByHour: [3, 5, 2, 8, 12, 15, 10, 7, 9, 6, 4, 6],
+            successfulByHour: [1, 0, 0, 2, 8, 12, 10, 9, 7, 5, 3, 2],
+            hours: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
+        };
+
+        // Function to start the scan and show dashboard
+        function startScan() {
+            document.getElementById('landingPage').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            // Initialize charts after a short delay to ensure DOM is ready
+            setTimeout(initializeCharts, 500);
+
+            // Add some sample data for demonstration
+            addSampleData();
+        }
+
+        // Function to switch between tabs
+        function switchTab(tabId) {
+            const tabElement = document.getElementById(tabId);
+            if (tabElement) {
+                const tab = new bootstrap.Tab(tabElement);
+                tab.show();
+            }
+        }
+
+        // Add sample data for demonstration
+        function addSampleData() {
+            securityEvents = [
+                { id: 1, time: '11/30/2025 12:45 AM', ip: '192.168.1.105', username: 'admin', eventType: 'Failed Login', severity: 'Critical', source: 'Internal' },
+                { id: 2, time: '11/30/2025 12:47 AM', ip: '203.0.113.25', username: 'root', eventType: 'Brute Force', severity: 'Critical', source: 'External' },
+                { id: 3, time: '11/30/2025 12:52 AM', ip: '192.168.1.110', username: 'user123', eventType: 'Failed Login', severity: 'Warning', source: 'Internal' },
+                { id: 4, time: '11/30/2025 12:55 AM', ip: '198.51.100.34', username: 'jsmith', eventType: 'SSH Anomaly', severity: 'Warning', source: 'External' },
+                { id: 5, time: '11/30/2025 12:58 AM', ip: '192.168.1.105', username: 'admin', eventType: 'PowerShell Abuse', severity: 'Critical', source: 'Internal' },
+                { id: 6, time: '11/30/2025 01:05 AM', ip: '203.0.113.42', username: 'test', eventType: 'Port Scan', severity: 'Warning', source: 'External' },
+                { id: 7, time: '11/30/2025 01:12 AM', ip: '192.168.1.120', username: 'mjones', eventType: 'Successful Login', severity: 'Normal', source: 'Internal' },
+            ];
+
+            updateSecurityEventsTable();
+
+            // Update summary statistics
+            document.getElementById('totalAttacks').textContent = securityEvents.length;
+            document.getElementById('failedLogins').textContent = securityEvents.filter(e => e.eventType === 'Failed Login').length;
+            document.getElementById('bruteForceAttempts').textContent = securityEvents.filter(e => e.eventType === 'Brute Force').length;
+            document.getElementById('blockedIpsCount').textContent = blockedIPs.length;
+        }
+
+        // Update security events table
+        function updateSecurityEventsTable() {
+            const eventsTable = document.getElementById('securityEventsTable');
+            eventsTable.innerHTML = '';
+
+            if (securityEvents.length === 0) {
+                eventsTable.innerHTML = '<tr><td colspan="7" class="text-center py-4">No security events detected yet</td></tr>';
+                return;
+            }
+
+            securityEvents.forEach(event => {
+                const row = document.createElement('tr');
+
+                // Check if IP is blocked
+                const isBlocked = blockedIPs.some(blocked => blocked.ip === event.ip);
+                if (isBlocked) {
+                    row.classList.add('blocked-ip');
+                }
+
+                // Determine badge class based on severity
+                let badgeClass = 'badge-normal';
+                if (event.severity === 'Critical') badgeClass = 'badge-critical';
+                else if (event.severity === 'Warning') badgeClass = 'badge-warning';
+
+                row.innerHTML = `
+                    <td>${event.time}</td>
+                    <td>${event.ip}</td>
+                    <td>${event.username}</td>
+                    <td>${event.eventType}</td>
+                    <td><span class="badge ${badgeClass}">${event.severity}</span></td>
+                    <td>${event.source}</td>
+                    <td>
+                        <button class="btn btn-block" onclick="blockIP('${event.ip}', '${event.eventType}')" ${isBlocked ? 'disabled' : ''}>
+                            <i class="fas fa-ban me-1"></i>Block IP
+                        </button>
+                    </td>
+                `;
+
+                eventsTable.appendChild(row);
+            });
+        }
+
+        // Update blocked IPs table
+        function updateBlockedIPsTable() {
+            const blockedTable = document.getElementById('blockedIpsTable');
+            blockedTable.innerHTML = '';
+
+            if (blockedIPs.length === 0) {
+                blockedTable.innerHTML = '<tr><td colspan="5" class="text-center py-4">No IP addresses blocked yet</td></tr>';
+                return;
+            }
+
+            blockedIPs.forEach(blocked => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${blocked.ip}</td>
+                    <td>${blocked.blockedAt}</td>
+                    <td>${blocked.reason}</td>
+                    <td>${blocked.eventCount}</td>
+                    <td>
+                        <button class="btn btn-outline-cyber btn-sm" onclick="unblockIP('${blocked.ip}')">
+                            <i class="fas fa-unlock me-1"></i>Unblock
+                        </button>
+                    </td>
+                `;
+                blockedTable.appendChild(row);
+            });
+
+            // Update blocked IPs count in summary
+            document.getElementById('blockedIpsCount').textContent = blockedIPs.length;
+        }
+
+        // Update unblocked IPs table
+        function updateUnblockedIPsTable() {
+            const unblockedTable = document.getElementById('unblockedIpsTable');
+            unblockedTable.innerHTML = '';
+
+            if (unblockedIPs.length === 0) {
+                unblockedTable.innerHTML = '<tr><td colspan="6" class="text-center py-4">No IP addresses have been unblocked yet</td></tr>';
+                return;
+            }
+
+            unblockedIPs.forEach(unblocked => {
+                const row = document.createElement('tr');
+                row.classList.add('unblocked-ip-row');
+
+                // Calculate block duration
+                const blockedTime = new Date(unblocked.blockedAt);
+                const unblockedTime = new Date(unblocked.unblockedAt);
+                const durationMs = unblockedTime - blockedTime;
+                const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+                const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                const durationText = durationHours > 0 ?
+                    `${durationHours}h ${durationMinutes}m` :
+                    `${durationMinutes}m`;
+
+                row.innerHTML = `
+                    <td>${unblocked.ip}</td>
+                    <td>${unblocked.blockedAt}</td>
+                    <td>${unblocked.unblockedAt}</td>
+                    <td>${unblocked.reason}</td>
+                    <td>${unblocked.eventCount}</td>
+                    <td>${durationText}</td>
+                `;
+                unblockedTable.appendChild(row);
+            });
+        }
+
+        // Block IP address
+        function blockIP(ip, reason) {
+            // Check if IP is already blocked
+            if (blockedIPs.some(blocked => blocked.ip === ip)) {
+                showToast('IP address is already blocked', 'error');
+                return;
+            }
+
+            // Count events from this IP
+            const eventCount = securityEvents.filter(event => event.ip === ip).length;
+
+            // Add to blocked IPs list
+            const blockedAt = new Date().toLocaleString();
+            blockedIPs.push({
+                ip: ip,
+                blockedAt: blockedAt,
+                reason: reason,
+                eventCount: eventCount
+            });
+
+            // Update tables
+            updateSecurityEventsTable();
+            updateBlockedIPsTable();
+
+            // Show success message
+            showToast(`IP address ${ip} has been blocked successfully`, 'success');
+
+            // In a real implementation, this would send a request to the backend
+            console.log(`Blocking IP: ${ip} for reason: ${reason}`);
+        }
+
+        // Unblock IP address
+        function unblockIP(ip) {
+            // Find the blocked IP record
+            const blockedIP = blockedIPs.find(blocked => blocked.ip === ip);
+            if (!blockedIP) {
+                showToast('IP address not found in blocked list', 'error');
+                return;
+            }
+
+            // Add to unblocked IPs history
+            const unblockedAt = new Date().toLocaleString();
+            unblockedIPs.push({
+                ...blockedIP,
+                unblockedAt: unblockedAt
+            });
+
+            // Remove from blocked IPs list
+            blockedIPs = blockedIPs.filter(blocked => blocked.ip !== ip);
+
+            // Update tables
+            updateSecurityEventsTable();
+            updateBlockedIPsTable();
+            updateUnblockedIPsTable();
+
+            // Show success message
+            showToast(`IP address ${ip} has been unblocked`, 'success');
+
+            // In a real implementation, this would send a request to the backend
+            console.log(`Unblocking IP: ${ip}`);
+        }
+
+        // Clear all blocked IPs
+        function clearAllBlocks() {
+            if (blockedIPs.length === 0) {
+                showToast('No IP addresses to unblock', 'info');
+                return;
+            }
+
+            if (confirm('Are you sure you want to unblock all IP addresses?')) {
+                // Add all blocked IPs to unblocked history
+                const unblockedAt = new Date().toLocaleString();
+                blockedIPs.forEach(blocked => {
+                    unblockedIPs.push({
+                        ...blocked,
+                        unblockedAt: unblockedAt
+                    });
+                });
+
+                blockedIPs = [];
+                updateSecurityEventsTable();
+                updateBlockedIPsTable();
+                updateUnblockedIPsTable();
+                showToast('All IP addresses have been unblocked', 'success');
+            }
+        }
+
+        // Clear unblocked history
+        function clearUnblockedHistory() {
+            if (unblockedIPs.length === 0) {
+                showToast('No unblocked IP history to clear', 'info');
+                return;
+            }
+
+            if (confirm('Are you sure you want to clear all unblocked IP history?')) {
+                unblockedIPs = [];
+                updateUnblockedIPsTable();
+                showToast('Unblocked IP history cleared', 'success');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+
+            const toast = document.createElement('div');
+            toast.className = `toast cyber-toast ${type === 'success' ? 'toast-success' : type === 'error' ? 'toast-error' : ''}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.id = toastId;
+
+            toast.innerHTML = `
+                <div class="toast-header">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle text-success' : type === 'error' ? 'fa-exclamation-circle text-danger' : 'fa-info-circle text-primary'} me-2"></i>
+                    <strong class="me-auto">CyberPulse</strong>
+                    <small>Just now</small>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+            bsToast.show();
+
+            // Remove toast from DOM after it's hidden
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        // Format date for display - handle date-only inputs properly
+        function formatDateForDisplay(dateString) {
+            if (!dateString) return 'Not specified';
+
+            // For date-only inputs (YYYY-MM-DD), create date without time component
+            if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString(); // Only show date, no time
+            }
+
+            // For datetime inputs, show both date and time
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        // Get time period display text
+        function getTimePeriodDisplay() {
+            const reportPeriod = document.getElementById('reportPeriod').value;
+
+            if (reportPeriod === 'custom') {
+                const startDate = document.getElementById('customStartDate').value;
+                const endDate = document.getElementById('customEndDate').value;
+
+                if (startDate && endDate) {
+                    // For custom date range, just show the dates without times
+                    const start = new Date(startDate).toLocaleDateString();
+                    const end = new Date(endDate).toLocaleDateString();
+                    return `${start} to ${end}`;
+                } else {
+                    return 'Custom Range (dates not specified)';
+                }
+            } else {
+                // Return the selected option text for predefined periods
+                const select = document.getElementById('reportPeriod');
+                return select.options[select.selectedIndex].text;
+            }
+        }
+
+        // Generate report function
+        function generateReport() {
+            const reportType = document.getElementById('reportType').value;
+            const reportPeriod = getTimePeriodDisplay();
+            const reportFormat = document.getElementById('reportFormat').value;
+
+            // Hide placeholder and show report content
+            document.getElementById('reportPlaceholder').style.display = 'none';
+            document.getElementById('reportContent').style.display = 'block';
+
+            // Generate report content based on selections
+            const reportContent = document.getElementById('reportContent');
+
+            // Calculate metrics for the report
+            const severityDist = getSeverityDistribution();
+            const ipFrequency = getIPFrequency();
+
+            reportContent.innerHTML = `
+                <h4>CyberPulse Security Report</h4>
+                <p><strong>Report Type:</strong> ${document.getElementById('reportType').options[document.getElementById('reportType').selectedIndex].text}</p>
+                <p><strong>Time Period:</strong> ${reportPeriod}</p>
+                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                <hr>
+
+                <div class="report-section-title">Security Summary</div>
+                <div class="report-metric"><strong>Total Attacks:</strong> ${securityEvents.length}</div>
+                <div class="report-metric"><strong>Failed Logins:</strong> ${securityEvents.filter(e => e.eventType === 'Failed Login').length}</div>
+                <div class="report-metric"><strong>Brute Force Attempts:</strong> ${securityEvents.filter(e => e.eventType === 'Brute Force').length}</div>
+                <div class="report-metric"><strong>Successful Logins:</strong> ${securityEvents.filter(e => e.eventType === 'Successful Login').length}</div>
+                <div class="report-metric"><strong>Currently Blocked IPs:</strong> ${blockedIPs.length}</div>
+                <div class="report-metric"><strong>Historically Unblocked IPs:</strong> ${unblockedIPs.length}</div>
+
+                <div class="report-section-title">Severity Level</div>
+                <div class="report-metric"><strong>Critical:</strong> ${severityDist.critical}</div>
+                <div class="report-metric"><strong>Warning:</strong> ${severityDist.warning}</div>
+                <div class="report-metric"><strong>Normal:</strong> ${severityDist.normal}</div>
+
+                ${blockedIPs.length > 0 ? `
+                <div class="report-section-title">Currently Blocked IP Addresses</div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Blocked At</th>
+                            <th>Reason</th>
+                            <th>Events Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${blockedIPs.map(blocked => `
+                            <tr>
+                                <td>${blocked.ip}</td>
+                                <td>${blocked.blockedAt}</td>
+                                <td>${blocked.reason}</td>
+                                <td>${blocked.eventCount}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                ` : ''}
+
+                ${unblockedIPs.length > 0 ? `
+                <div class="report-section-title">Historically Unblocked IP Addresses</div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Originally Blocked</th>
+                            <th>Unblocked At</th>
+                            <th>Reason</th>
+                            <th>Events Count</th>
+                            <th>Block Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${unblockedIPs.map(unblocked => {
+                            const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
+                            return `
+                            <tr>
+                                <td>${unblocked.ip}</td>
+                                <td>${unblocked.blockedAt}</td>
+                                <td>${unblocked.unblockedAt}</td>
+                                <td>${unblocked.reason}</td>
+                                <td>${unblocked.eventCount}</td>
+                                <td>${duration}</td>
+                            </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                ` : ''}
+
+                <div class="report-section-title">Failed Logins Per Hour</div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${loginStats.failedByHour.map(count => `<td>${count}</td>`).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="report-section-title">Successful Logins Per Hour</div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${loginStats.successfulByHour.map(count => `<td>${count}</td>`).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-4">
+                    <button class="btn btn-cyber" onclick="downloadReport('${reportFormat}')">
+                        <i class="fas fa-download me-2"></i>Download ${reportFormat.toUpperCase()} Report
+                    </button>
+                </div>
+            `;
+        }
+
+        // Download report function
+        function downloadReport(format) {
+            const reportType = document.getElementById('reportType').value;
+            const reportPeriod = getTimePeriodDisplay();
+
+            switch(format) {
+                case 'pdf':
+                    downloadPDFReport(reportType, reportPeriod);
+                    break;
+                case 'html':
+                    downloadHTMLReport(reportType, reportPeriod);
+                    break;
+                case 'csv':
+                    downloadCSVReport(reportType, reportPeriod);
+                    break;
+            }
+
+            showToast(`${format.toUpperCase()} report downloaded successfully`, 'success');
+        }
+
+        // Calculate severity distribution
+        function getSeverityDistribution() {
+            const critical = securityEvents.filter(e => e.severity === 'Critical').length;
+            const warning = securityEvents.filter(e => e.severity === 'Warning').length;
+            const normal = securityEvents.filter(e => e.severity === 'Normal').length;
+            return { critical, warning, normal };
+        }
+
+        // Get IP frequency data
+        function getIPFrequency() {
+            const ipCounts = {};
+            securityEvents.forEach(event => {
+                ipCounts[event.ip] = (ipCounts[event.ip] || 0) + 1;
+            });
+
+            // Convert to array and sort by frequency
+            return Object.entries(ipCounts)
+                .map(([ip, count]) => ({ ip, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10); // Top 10 IPs
+        }
+
+        // Calculate block duration for unblocked IPs
+        function calculateBlockDuration(blockedAt, unblockedAt) {
+            const blockedTime = new Date(blockedAt);
+            const unblockedTime = new Date(unblockedAt);
+            const durationMs = unblockedTime - blockedTime;
+            const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+            const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+            return durationHours > 0 ?
+                `${durationHours}h ${durationMinutes}m` :
+                `${durationMinutes}m`;
+        }
+
+        // Download PDF Report
+        function downloadPDFReport(reportType, reportPeriod) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let yPosition = 20;
+
+            // Set font to Times New Roman
+            doc.setFont("Times", "normal");
+
+            // Header
+            doc.setFontSize(20);
+            doc.text('CyberPulse Security Report', 20, yPosition);
+            yPosition += 15;
+
+            doc.setFontSize(12);
+            doc.text(`Report Type: ${reportType}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Time Period: ${reportPeriod}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPosition);
+            yPosition += 15;
+
+            // Security Summary
+            doc.setFontSize(16);
+            doc.text('Security Summary', 20, yPosition);
+            yPosition += 10;
+
+            doc.setFontSize(12);
+            const severityDist = getSeverityDistribution();
+            doc.text(`Total Attacks: ${securityEvents.length}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Failed Logins: ${securityEvents.filter(e => e.eventType === 'Failed Login').length}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Brute Force Attempts: ${securityEvents.filter(e => e.eventType === 'Brute Force').length}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Successful Logins: ${securityEvents.filter(e => e.eventType === 'Successful Login').length}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Currently Blocked IPs: ${blockedIPs.length}`, 20, yPosition);
+            yPosition += 7;
+            doc.text(`Historically Unblocked IPs: ${unblockedIPs.length}`, 20, yPosition);
+            yPosition += 10;
+
+            // Alert Severity Distribution
+            doc.text(`Severity Level - Critical: ${severityDist.critical}, Warning: ${severityDist.warning}, Normal: ${severityDist.normal}`, 20, yPosition);
+            yPosition += 15;
+
+            // Currently Blocked IPs
+            if (blockedIPs.length > 0) {
+                doc.text('Currently Blocked IP Addresses:', 20, yPosition);
+                yPosition += 7;
+                blockedIPs.forEach(blocked => {
+                    if (yPosition > 270) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    doc.text(`${blocked.ip} - Blocked: ${blocked.blockedAt} - Reason: ${blocked.reason} - Events: ${blocked.eventCount}`, 25, yPosition);
+                    yPosition += 7;
+                });
+                yPosition += 10;
+            }
+
+            // Unblocked IPs History
+            if (unblockedIPs.length > 0) {
+                doc.text('Historically Unblocked IP Addresses:', 20, yPosition);
+                yPosition += 7;
+                unblockedIPs.forEach(unblocked => {
+                    if (yPosition > 270) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
+                    doc.text(`${unblocked.ip} - Blocked: ${unblocked.blockedAt} - Unblocked: ${unblocked.unblockedAt} - Duration: ${duration} - Reason: ${unblocked.reason}`, 25, yPosition);
+                    yPosition += 7;
+                });
+                yPosition += 10;
+            }
+
+            // Failed Logins Per Hour
+            doc.text('Failed Logins Per Hour:', 20, yPosition);
+            yPosition += 7;
+            loginStats.hours.forEach((hour, index) => {
+                if (yPosition > 270) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                doc.text(`${hour}: ${loginStats.failedByHour[index]} failed logins`, 25, yPosition);
+                yPosition += 7;
+            });
+            yPosition += 5;
+
+            // Successful Logins Per Hour
+            doc.text('Successful Logins Per Hour:', 20, yPosition);
+            yPosition += 7;
+            loginStats.hours.forEach((hour, index) => {
+                if (yPosition > 270) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                doc.text(`${hour}: ${loginStats.successfulByHour[index]} successful logins`, 25, yPosition);
+                yPosition += 7;
+            });
+            yPosition += 10;
+
+            // IP Frequency
+            const ipFrequency = getIPFrequency();
+            doc.text('Top IP Addresses by Frequency:', 20, yPosition);
+            yPosition += 7;
+            ipFrequency.forEach(ip => {
+                if (yPosition > 270) {
+                    doc.addPage();
+                    yPosition = 20;
+                }
+                doc.text(`${ip.ip}: ${ip.count} events`, 25, yPosition);
+                yPosition += 7;
+            });
+            yPosition += 10;
+
+            // Security Events Table
+            doc.text('Security Events:', 20, yPosition);
+            yPosition += 10;
+
+            const tableColumns = ['Time', 'IP', 'Username', 'Event Type', 'Severity', 'Source'];
+            const tableRows = securityEvents.map(event => [
+                event.time,
+                event.ip,
+                event.username,
+                event.eventType,
+                event.severity,
+                event.source
+            ]);
+
+            doc.autoTable({
+                head: [tableColumns],
+                body: tableRows,
+                startY: yPosition,
+                theme: 'grid',
+                headStyles: { fillColor: [42, 159, 214] },
+                styles: { fontSize: 8 },
+                margin: { left: 20 }
+            });
+
+            doc.save(`cyberpulse-report-${new Date().getTime()}.pdf`);
+        }
+
+        // Download HTML Report
+        function downloadHTMLReport(reportType, reportPeriod) {
+            const severityDist = getSeverityDistribution();
+            const ipFrequency = getIPFrequency();
+
+            const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CyberPulse Security Report</title>
+    <style>
+        body { font-family: 'Times New Roman', Times, serif; margin: 20px; }
+        .header { background: #2a9fd6; color: white; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .metric-card { background: #f5f5f5; padding: 15px; border-radius: 5px; border-left: 4px solid #2a9fd6; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .critical { color: #cc0000; font-weight: bold; }
+        .warning { color: #ff8800; font-weight: bold; }
+        .normal { color: #77b300; font-weight: bold; }
+        .unblocked { background-color: #f8f9fa; }
+        .section-title { color: #2a9fd6; margin-top: 25px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CyberPulse Security Report</h1>
+        <p><strong>Report Type:</strong> ${reportType}</p>
+        <p><strong>Time Period:</strong> ${reportPeriod}</p>
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+    </div>
+
+    <div class="section-title">Security Summary</div>
+    <div class="summary">
+        <div class="metrics">
+            <div class="metric-card">
+                <h3>Total Attacks</h3>
+                <p style="font-size: 24px; font-weight: bold;">${securityEvents.length}</p>
+            </div>
+            <div class="metric-card">
+                <h3>Failed Logins</h3>
+                <p style="font-size: 24px; font-weight: bold;" class="critical">${securityEvents.filter(e => e.eventType === 'Failed Login').length}</p>
+            </div>
+            <div class="metric-card">
+                <h3>Brute Force</h3>
+                <p style="font-size: 24px; font-weight: bold;" class="warning">${securityEvents.filter(e => e.eventType === 'Brute Force').length}</p>
+            </div>
+            <div class="metric-card">
+                <h3>Successful Logins</h3>
+                <p style="font-size: 24px; font-weight: bold;" class="normal">${securityEvents.filter(e => e.eventType === 'Successful Login').length}</p>
+            </div>
+            <div class="metric-card">
+                <h3>Blocked IPs</h3>
+                <p style="font-size: 24px; font-weight: bold;" class="warning">${blockedIPs.length}</p>
+            </div>
+            <div class="metric-card">
+                <h3>Unblocked IPs</h3>
+                <p style="font-size: 24px; font-weight: bold;">${unblockedIPs.length}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-title">Severity Level</div>
+    <table>
+        <tr>
+            <th>Critical</th>
+            <th>Warning</th>
+            <th>Normal</th>
+        </tr>
+        <tr>
+            <td class="critical">${severityDist.critical}</td>
+            <td class="warning">${severityDist.warning}</td>
+            <td class="normal">${severityDist.normal}</td>
+        </tr>
+    </table>
+
+    ${blockedIPs.length > 0 ? `
+    <div class="section-title">Currently Blocked IP Addresses</div>
+    <table>
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Blocked At</th>
+                <th>Reason</th>
+                <th>Events Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${blockedIPs.map(blocked => `
+                <tr>
+                    <td>${blocked.ip}</td>
+                    <td>${blocked.blockedAt}</td>
+                    <td>${blocked.reason}</td>
+                    <td>${blocked.eventCount}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    ` : ''}
+
+    ${unblockedIPs.length > 0 ? `
+    <div class="section-title">Historically Unblocked IP Addresses</div>
+    <table>
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Originally Blocked</th>
+                <th>Unblocked At</th>
+                <th>Reason</th>
+                <th>Events Count</th>
+                <th>Block Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${unblockedIPs.map(unblocked => {
+                const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
+                return `
+                <tr class="unblocked">
+                    <td>${unblocked.ip}</td>
+                    <td>${unblocked.blockedAt}</td>
+                    <td>${unblocked.unblockedAt}</td>
+                    <td>${unblocked.reason}</td>
+                    <td>${unblocked.eventCount}</td>
+                    <td>${duration}</td>
+                </tr>
+                `;
+            }).join('')}
+        </tbody>
+    </table>
+    ` : ''}
+
+    <div class="section-title">Failed Logins Per Hour</div>
+    <table>
+        <thead>
+            <tr>
+                ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                ${loginStats.failedByHour.map(count => `<td>${count}</td>`).join('')}
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-title">Successful Logins Per Hour</div>
+    <table>
+        <thead>
+            <tr>
+                ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                ${loginStats.successfulByHour.map(count => `<td>${count}</td>`).join('')}
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="section-title">Top IP Addresses by Frequency</div>
+    <table>
+        <thead>
+            <tr>
+                <th>IP Address</th>
+                <th>Event Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${ipFrequency.map(ip => `
+                <tr>
+                    <td>${ip.ip}</td>
+                    <td>${ip.count}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+
+    <div class="section-title">Security Events</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>IP Address</th>
+                <th>Username</th>
+                <th>Event Type</th>
+                <th>Severity</th>
+                <th>Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${securityEvents.map(event => `
+                <tr>
+                    <td>${event.time}</td>
+                    <td>${event.ip}</td>
+                    <td>${event.username}</td>
+                    <td>${event.eventType}</td>
+                    <td class="${event.severity.toLowerCase()}">${event.severity}</td>
+                    <td>${event.source}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cyberpulse-report-${new Date().getTime()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Download CSV Report
+        function downloadCSVReport(reportType, reportPeriod) {
+            const severityDist = getSeverityDistribution();
+            const ipFrequency = getIPFrequency();
+
+            let csvContent = 'CyberPulse Security Report\n';
+            csvContent += `Report Type,${reportType}\n`;
+            csvContent += `Time Period,${reportPeriod}\n`;
+            csvContent += `Generated,${new Date().toLocaleString()}\n\n`;
+
+            // Security Summary
+            csvContent += 'SECURITY SUMMARY\n';
+            csvContent += 'Metric,Value\n';
+            csvContent += `Total Attacks,${securityEvents.length}\n`;
+            csvContent += `Failed Logins,${securityEvents.filter(e => e.eventType === 'Failed Login').length}\n`;
+            csvContent += `Brute Force Attempts,${securityEvents.filter(e => e.eventType === 'Brute Force').length}\n`;
+            csvContent += `Successful Logins,${securityEvents.filter(e => e.eventType === 'Successful Login').length}\n`;
+            csvContent += `Currently Blocked IPs,${blockedIPs.length}\n`;
+            csvContent += `Historically Unblocked IPs,${unblockedIPs.length}\n\n`;
+
+            // Alert Severity Distribution
+            csvContent += 'SEVERITY LEVEL\n';
+            csvContent += 'Severity,Count\n';
+            csvContent += `Critical,${severityDist.critical}\n`;
+            csvContent += `Warning,${severityDist.warning}\n`;
+            csvContent += `Normal,${severityDist.normal}\n\n`;
+
+            // Currently Blocked IPs
+            if (blockedIPs.length > 0) {
+                csvContent += 'CURRENTLY BLOCKED IP ADDRESSES\n';
+                csvContent += 'IP Address,Blocked At,Reason,Events Count\n';
+                blockedIPs.forEach(blocked => {
+                    csvContent += `"${blocked.ip}","${blocked.blockedAt}","${blocked.reason}",${blocked.eventCount}\n`;
+                });
+                csvContent += '\n';
+            }
+
+            // Unblocked IPs History
+            if (unblockedIPs.length > 0) {
+                csvContent += 'HISTORICALLY UNBLOCKED IP ADDRESSES\n';
+                csvContent += 'IP Address,Originally Blocked,Unblocked At,Reason,Events Count,Block Duration\n';
+                unblockedIPs.forEach(unblocked => {
+                    const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
+                    csvContent += `"${unblocked.ip}","${unblocked.blockedAt}","${unblocked.unblockedAt}","${unblocked.reason}",${unblocked.eventCount},"${duration}"\n`;
+                });
+                csvContent += '\n';
+            }
+
+            // Failed Logins Per Hour
+            csvContent += 'FAILED LOGINS PER HOUR\n';
+            csvContent += 'Hour,Count\n';
+            loginStats.hours.forEach((hour, index) => {
+                csvContent += `${hour},${loginStats.failedByHour[index]}\n`;
+            });
+            csvContent += '\n';
+
+            // Successful Logins Per Hour
+            csvContent += 'SUCCESSFUL LOGINS PER HOUR\n';
+            csvContent += 'Hour,Count\n';
+            loginStats.hours.forEach((hour, index) => {
+                csvContent += `${hour},${loginStats.successfulByHour[index]}\n`;
+            });
+            csvContent += '\n';
+
+            // IP Frequency
+            csvContent += 'TOP IP ADDRESSES BY FREQUENCY\n';
+            csvContent += 'IP Address,Event Count\n';
+            ipFrequency.forEach(ip => {
+                csvContent += `${ip.ip},${ip.count}\n`;
+            });
+            csvContent += '\n';
+
+            // Security Events
+            csvContent += 'SECURITY EVENTS\n';
+            csvContent += 'Time,IP Address,Username,Event Type,Severity,Source\n';
+            securityEvents.forEach(event => {
+                csvContent += `"${event.time}","${event.ip}","${event.username}","${event.eventType}","${event.severity}","${event.source}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cyberpulse-report-${new Date().getTime()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Preview report function
+        function previewReport() {
+            showToast('Report preview would open in a new window when connected to backend', 'info');
+        }
+
+        // Initialize all charts with empty data
+        function initializeCharts() {
+            const emptyData = [];
+            const emptyLabels = [];
+
+            // Failed Logins Per Hour Chart
+            const failedCtx = document.getElementById('failedLoginsChart').getContext('2d');
+            new Chart(failedCtx, {
+                type: 'line',
+                data: {
+                    labels: emptyLabels,
+                    datasets: [{
+                        label: 'Failed Logins',
+                        data: emptyData,
+                        borderColor: '#cc0000',
+                        backgroundColor: 'rgba(204, 0, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Successful Logins Per Hour Chart
+            const successCtx = document.getElementById('successfulLoginsChart').getContext('2d');
+            new Chart(successCtx, {
+                type: 'line',
+                data: {
+                    labels: emptyLabels,
+                    datasets: [{
+                        label: 'Successful Logins',
+                        data: emptyData,
+                        borderColor: '#77b300',
+                        backgroundColor: 'rgba(119, 179, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Severity Distribution Chart
+            const severityCtx = document.getElementById('severityChart').getContext('2d');
+            new Chart(severityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'Warning', 'Normal'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            '#cc0000',
+                            '#ff8800',
+                            '#77b300'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e6e6e6',
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+
+            // IP Frequency Chart
+            const ipCtx = document.getElementById('ipFrequencyChart').getContext('2d');
+            new Chart(ipCtx, {
+                type: 'bar',
+                data: {
+                    labels: emptyLabels,
+                    datasets: [{
+                        label: 'Attack Frequency',
+                        data: emptyData,
+                        backgroundColor: '#2a9fd6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(45, 55, 70, 0.5)'
+                            },
+                            ticks: {
+                                color: '#e6e6e6'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Apply filters function
+        function applyFilters() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const severity = document.getElementById('severityFilter').value;
+            const eventType = document.getElementById('eventTypeFilter').value;
+
+            // In a real implementation, this would filter the data from the backend
+            showToast(`Filters applied: ${severity !== 'all' ? severity + ' severity' : ''} ${eventType !== 'all' ? eventType + ' events' : ''}`);
+
+            // For now, we'll just show a message that filtering would happen
+            console.log('Filters would be applied to the data when connected to backend');
+        }
+
+        // Reset filters function
+        function resetFilters() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('severityFilter').value = 'all';
+            document.getElementById('eventTypeFilter').value = 'all';
+
+            showToast('Filters reset to default values');
+        }
+
+        // Set default date values for filters
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default datetime values for filters (current date/time)
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+
+            // Format for datetime-local input
+            const formatDateTime = (date) => {
+                return date.toISOString().slice(0, 16);
+            };
+
+            document.getElementById('startDate').value = formatDateTime(oneHourAgo);
+            document.getElementById('endDate').value = formatDateTime(now);
+
+            // Set default dates for custom range
+            const today = new Date();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 7);
+
+            document.getElementById('customStartDate').valueAsDate = oneWeekAgo;
+            document.getElementById('customEndDate').valueAsDate = today;
+
+            // Show/hide custom date range based on selection
+            document.getElementById('reportPeriod').addEventListener('change', function() {
+                const customDateRange = document.getElementById('customDateRange');
+                if (this.value === 'custom') {
+                    customDateRange.style.display = 'block';
+                } else {
+                    customDateRange.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

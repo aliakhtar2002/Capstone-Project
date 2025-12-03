@@ -1,0 +1,172 @@
+[
+  {
+    "timestamp": "2025-12-02T19:12:39.209470",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:39.409776",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:39.610076",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:39.810379",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.011077",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.211397",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.411713",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.611882",
+    "source_ip": "192.168.1.116",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.812263",
+    "source_ip": "10.0.0.50",
+    "event_type": "port_scan",
+    "ports": 586
+  },
+  {
+    "timestamp": "2025-12-02T19:12:40.812311",
+    "source_ip": "172.16.0.100",
+    "command": "IEX (New-Object Net.WebClient).DownloadString()",
+    "event_type": "powershell_abuse"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:41.112697",
+    "source_ip": "172.16.0.100",
+    "command": "Start-Process -WindowStyle Hidden",
+    "event_type": "powershell_abuse"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:41.413143",
+    "source_ip": "10.10.10.10",
+    "command": "sudo cat /etc/shadow",
+    "event_type": "privilege_escalation"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:41.413174",
+    "source_ip": "10.0.0.123",
+    "username": "user0",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:43.415240",
+    "source_ip": "10.0.0.123",
+    "username": "user1",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:45.417349",
+    "source_ip": "10.0.0.123",
+    "username": "user2",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:47.417712",
+    "source_ip": "10.0.0.123",
+    "username": "user3",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:49.418274",
+    "source_ip": "10.0.0.123",
+    "username": "user4",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:51.420387",
+    "source_ip": "10.0.0.123",
+    "username": "user5",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:53.421985",
+    "source_ip": "10.0.0.123",
+    "username": "user6",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:55.424090",
+    "source_ip": "10.0.0.123",
+    "username": "user7",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:57.426267",
+    "source_ip": "10.0.0.123",
+    "username": "user8",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:12:59.428229",
+    "source_ip": "10.0.0.123",
+    "username": "user9",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:13:01.430389",
+    "source_ip": "10.0.0.123",
+    "username": "user10",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:13:03.432491",
+    "source_ip": "10.0.0.123",
+    "username": "user11",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:13:05.434919",
+    "source_ip": "10.0.0.123",
+    "username": "user12",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:13:07.435200",
+    "source_ip": "10.0.0.123",
+    "username": "user13",
+    "event_type": "failed_login"
+  },
+  {
+    "timestamp": "2025-12-02T19:13:09.437318",
+    "source_ip": "10.0.0.123",
+    "username": "user14",
+    "event_type": "failed_login"
+  }
+]
