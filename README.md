@@ -7,7 +7,7 @@ CyberPulse is a real-time virtual Security Operations Center (SOC) prototype des
 3. **Aishat**: Aishat's Dashboard visualizes threats in real-time with interactive charts, geographic threat mapping, color-coded severity alerts, detailed security report generation (PDF/HTML/CSV), and IP blocking/unblocking capabilities.
 4. **Ali and Grishab**: Ali & Grishab's Infrastructure connects all components via APIs and data pipelines, ensuring seamless communication between attack simulations, detection, visualization, reporting, response, and management systems.
 
-### Team Roles
+## Team Roles
 - Ali Akhtar: API infrastructure and system integration.
 - Aishat Arawole: Dashboard frontend with complete visualization, reporting, and management interface.
 - Waad Elkenin: Detection rule development and threat analysis logic.
