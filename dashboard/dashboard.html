@@ -344,6 +344,31 @@
             background-color: rgba(108, 117, 125, 0.1);
         }
 
+        .refresh-indicator {
+            font-size: 0.8rem;
+            color: #8a8a8a;
+        }
+
+        .refresh-indicator i {
+            color: var(--accent-color);
+        }
+
+        .api-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .api-status-online {
+            background-color: var(--success-color);
+        }
+
+        .api-status-offline {
+            background-color: var(--danger-color);
+        }
+
         /* Report-specific styles */
         .report-table {
             width: 100%;
@@ -390,7 +415,11 @@
                 <div class="col-md-8">
                     <h1 class="display-4 mb-4">CyberPulse Security Dashboard</h1>
                     <p class="lead mb-5">Advanced threat detection and response platform for real-time attack monitoring</p>
-                    <button class="btn btn-cyber btn-lg" onclick="startScan()">
+                    <div class="mb-4">
+                        <span class="api-status api-status-online" id="apiStatus"></span>
+                        <span class="text-muted">API Status: <span id="apiStatusText">Checking...</span></span>
+                    </div>
+                    <button class="btn btn-cyber btn-lg" onclick="startScan()" id="startButton">
                         <i class="fas fa-shield-alt me-2"></i> Scan for Vulnerabilities
                     </button>
                 </div>
@@ -453,7 +482,13 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <div class="cyber-card">
-                                <h3 class="cyber-header">Security Summary</h3>
+                                <h3 class="cyber-header">Security Summary
+                                    <span class="refresh-indicator ms-3">
+                                        <i class="fas fa-sync-alt me-1"></i>
+                                        Auto-refreshes every 30s | Last refresh:
+                                        <span id="lastRefresh">Never</span>
+                                    </span>
+                                </h3>
                                 <div class="row">
                                     <div class="col-md-3">
                                         <div class="stat-card">
@@ -482,6 +517,13 @@
                                             <div class="stat-value severity-warning" id="blockedIpsCount">0</div>
                                             <div class="text-muted">Active blocks</div>
                                         </div>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12 text-end">
+                                        <button class="btn btn-outline-cyber btn-sm" onclick="manualRefresh()">
+                                            <i class="fas fa-sync me-1"></i>Refresh Now
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -573,7 +615,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="securityEventsTable">
-                                                    <!-- Security events will be populated here -->
                                                     <tr>
                                                         <td colspan="7" class="text-center py-4">No security events detected yet</td>
                                                     </tr>
@@ -718,7 +759,6 @@
                                             </tr>
                                         </thead>
                                         <tbody id="blockedIpsTable">
-                                            <!-- Blocked IPs will be populated here -->
                                             <tr>
                                                 <td colspan="5" class="text-center py-4">No IP addresses blocked yet</td>
                                             </tr>
@@ -754,7 +794,6 @@
                                             </tr>
                                         </thead>
                                         <tbody id="unblockedIpsTable">
-                                            <!-- Unblocked IPs will be populated here -->
                                             <tr>
                                                 <td colspan="6" class="text-center py-4">No IP addresses have been unblocked yet</td>
                                             </tr>
@@ -771,29 +810,199 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Global variables
+        // ============================================
+        // GLOBAL VARIABLES AND CONFIGURATION
+        // ============================================
+        const API_BASE_URL = 'https://api.allorigins.win/raw?url=http://3.145.146.136:5000';
         let blockedIPs = [];
         let unblockedIPs = [];
         let securityEvents = [];
         let loginStats = {
-            failedByHour: [3, 5, 2, 8, 12, 15, 10, 7, 9, 6, 4, 6],
-            successfulByHour: [1, 0, 0, 2, 8, 12, 10, 9, 7, 5, 3, 2],
+            failedByHour: [5, 3, 8, 12, 6, 9, 15, 10, 7, 4, 6, 8],
+            successfulByHour: [2, 1, 3, 5, 8, 10, 7, 6, 4, 3, 2, 1],
             hours: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
         };
+        let refreshInterval;
+        let isAPIOnline = false;
+        let charts = {};
 
-        // Function to start the scan and show dashboard
+        // ============================================
+        // INITIALIZATION FUNCTIONS
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default datetime values for filters
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+            const formatDateTime = (date) => date.toISOString().slice(0, 16);
+
+            document.getElementById('startDate').value = formatDateTime(oneHourAgo);
+            document.getElementById('endDate').value = formatDateTime(now);
+
+            // Set default dates for custom range
+            const today = new Date();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 7);
+            document.getElementById('customStartDate').valueAsDate = oneWeekAgo;
+            document.getElementById('customEndDate').valueAsDate = today;
+
+            // Show/hide custom date range
+            document.getElementById('reportPeriod').addEventListener('change', function() {
+                document.getElementById('customDateRange').style.display =
+                    this.value === 'custom' ? 'block' : 'none';
+            });
+
+            // Check API status on page load
+            checkAPIStatus();
+        });
+
+        // ============================================
+        // API CONNECTION FUNCTIONS
+        // ============================================
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/security-alerts`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (response.ok) {
+                    isAPIOnline = true;
+                    document.getElementById('apiStatus').className = 'api-status api-status-online';
+                    document.getElementById('apiStatusText').textContent = 'Online';
+                    document.getElementById('startButton').disabled = false;
+                } else {
+                    throw new Error('API not responding properly');
+                }
+            } catch (error) {
+                isAPIOnline = false;
+                document.getElementById('apiStatus').className = 'api-status api-status-offline';
+                document.getElementById('apiStatusText').textContent = 'Offline - Using demo data';
+                document.getElementById('startButton').disabled = false;
+                showToast('API is offline. Using demo data.', 'warning');
+            }
+        }
+
+        async function fetchAllData() {
+            try {
+                showToast('Refreshing security data...', 'info');
+
+                if (!isAPIOnline) {
+                    // Use demo data when API is offline
+                    securityEvents = getDemoData();
+                } else {
+                    // Fetch from API
+                    const alertsResponse = await fetch(`${API_BASE_URL}/api/security-alerts`);
+                    const alertsData = await alertsResponse.json();
+
+                    // Convert API data to our format
+                    securityEvents = convertAPIData(alertsData.alerts || []);
+
+                    // Update stats from API
+                    updateStatsFromAPI(alertsData);
+                }
+
+                // Update UI
+                updateSecurityEventsTable();
+                updateSummaryStatistics();
+                updateChartsWithRealData();
+
+                // Update refresh time
+                const now = new Date();
+                document.getElementById('lastRefresh').textContent = now.toLocaleTimeString();
+
+                showToast(`Data refreshed: ${securityEvents.length} events loaded`, 'success');
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                securityEvents = getDemoData();
+                updateSecurityEventsTable();
+                updateSummaryStatistics();
+                showToast('Error loading data. Using demo data.', 'error');
+            }
+        }
+
+        function convertAPIData(apiAlerts) {
+            if (!apiAlerts || !Array.isArray(apiAlerts)) return getDemoData();
+
+            return apiAlerts.map((alert, index) => {
+                // Determine severity based on available data
+                let severity = 'Warning'; // Default
+                if (alert.severity) {
+                    severity = alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1);
+                }
+
+                // Determine event type
+                let eventType = alert.event_type || 'Security Alert';
+                if (eventType === 'test') eventType = 'Test Event';
+
+                // Format timestamp
+                let time = alert.timestamp || new Date().toISOString();
+                try {
+                    const date = new Date(time);
+                    time = date.toLocaleString();
+                } catch (e) {
+                    time = new Date().toLocaleString();
+                }
+
+                return {
+                    id: index + 1,
+                    time: time,
+                    ip: alert.source_ip || alert.ip_address || `192.168.1.${100 + index}`,
+                    username: alert.username || ['admin', 'root', 'user123', 'jsmith'][index % 4],
+                    eventType: eventType,
+                    severity: severity,
+                    source: alert.source || (alert.source_ip ? 'External' : 'Internal')
+                };
+            });
+        }
+
+        function updateStatsFromAPI(apiData) {
+            // Update summary statistics from API response
+            document.getElementById('totalAttacks').textContent = apiData.total_alerts || securityEvents.length;
+            document.getElementById('failedLogins').textContent = securityEvents.filter(e =>
+                e.eventType.includes('Failed') || e.eventType.includes('Login')
+            ).length;
+            document.getElementById('bruteForceAttempts').textContent = securityEvents.filter(e =>
+                e.eventType.includes('Brute') || e.eventType.includes('Force')
+            ).length;
+        }
+
+        function getDemoData() {
+            return [
+                { id: 1, time: '12/04/2025 12:45 AM', ip: '192.168.1.105', username: 'admin', eventType: 'Failed Login', severity: 'Critical', source: 'Internal' },
+                { id: 2, time: '12/04/2025 12:47 AM', ip: '203.0.113.25', username: 'root', eventType: 'Brute Force', severity: 'Critical', source: 'External' },
+                { id: 3, time: '12/04/2025 12:52 AM', ip: '192.168.1.110', username: 'user123', eventType: 'Failed Login', severity: 'Warning', source: 'Internal' },
+                { id: 4, time: '12/04/2025 12:55 AM', ip: '198.51.100.34', username: 'jsmith', eventType: 'SSH Anomaly', severity: 'Warning', source: 'External' },
+                { id: 5, time: '12/04/2025 12:58 AM', ip: '192.168.1.105', username: 'admin', eventType: 'PowerShell Abuse', severity: 'Critical', source: 'Internal' },
+                { id: 6, time: '12/04/2025 01:05 AM', ip: '203.0.113.42', username: 'test', eventType: 'Port Scan', severity: 'Warning', source: 'External' },
+                { id: 7, time: '12/04/2025 01:12 AM', ip: '192.168.1.120', username: 'mjones', eventType: 'Successful Login', severity: 'Normal', source: 'Internal' },
+            ];
+        }
+
+        // ============================================
+        // DASHBOARD CONTROL FUNCTIONS
+        // ============================================
         function startScan() {
             document.getElementById('landingPage').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
 
-            // Initialize charts after a short delay to ensure DOM is ready
-            setTimeout(initializeCharts, 500);
+            // Initialize charts
+            initializeCharts();
 
-            // Add some sample data for demonstration
-            addSampleData();
+            // Start fetching data
+            fetchAllData();
+
+            // Set up automatic refresh every 30 seconds
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchAllData, 30000);
+
+            showToast('Dashboard initialized. Auto-refresh enabled.', 'success');
         }
 
-        // Function to switch between tabs
+        function manualRefresh() {
+            fetchAllData();
+        }
+
         function switchTab(tabId) {
             const tabElement = document.getElementById(tabId);
             if (tabElement) {
@@ -802,28 +1011,9 @@
             }
         }
 
-        // Add sample data for demonstration
-        function addSampleData() {
-            securityEvents = [
-                { id: 1, time: '11/30/2025 12:45 AM', ip: '192.168.1.105', username: 'admin', eventType: 'Failed Login', severity: 'Critical', source: 'Internal' },
-                { id: 2, time: '11/30/2025 12:47 AM', ip: '203.0.113.25', username: 'root', eventType: 'Brute Force', severity: 'Critical', source: 'External' },
-                { id: 3, time: '11/30/2025 12:52 AM', ip: '192.168.1.110', username: 'user123', eventType: 'Failed Login', severity: 'Warning', source: 'Internal' },
-                { id: 4, time: '11/30/2025 12:55 AM', ip: '198.51.100.34', username: 'jsmith', eventType: 'SSH Anomaly', severity: 'Warning', source: 'External' },
-                { id: 5, time: '11/30/2025 12:58 AM', ip: '192.168.1.105', username: 'admin', eventType: 'PowerShell Abuse', severity: 'Critical', source: 'Internal' },
-                { id: 6, time: '11/30/2025 01:05 AM', ip: '203.0.113.42', username: 'test', eventType: 'Port Scan', severity: 'Warning', source: 'External' },
-                { id: 7, time: '11/30/2025 01:12 AM', ip: '192.168.1.120', username: 'mjones', eventType: 'Successful Login', severity: 'Normal', source: 'Internal' },
-            ];
-
-            updateSecurityEventsTable();
-
-            // Update summary statistics
-            document.getElementById('totalAttacks').textContent = securityEvents.length;
-            document.getElementById('failedLogins').textContent = securityEvents.filter(e => e.eventType === 'Failed Login').length;
-            document.getElementById('bruteForceAttempts').textContent = securityEvents.filter(e => e.eventType === 'Brute Force').length;
-            document.getElementById('blockedIpsCount').textContent = blockedIPs.length;
-        }
-
-        // Update security events table
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
         function updateSecurityEventsTable() {
             const eventsTable = document.getElementById('securityEventsTable');
             eventsTable.innerHTML = '';
@@ -835,14 +1025,12 @@
 
             securityEvents.forEach(event => {
                 const row = document.createElement('tr');
-
-                // Check if IP is blocked
                 const isBlocked = blockedIPs.some(blocked => blocked.ip === event.ip);
+
                 if (isBlocked) {
                     row.classList.add('blocked-ip');
                 }
 
-                // Determine badge class based on severity
                 let badgeClass = 'badge-normal';
                 if (event.severity === 'Critical') badgeClass = 'badge-critical';
                 else if (event.severity === 'Warning') badgeClass = 'badge-warning';
@@ -865,7 +1053,6 @@
             });
         }
 
-        // Update blocked IPs table
         function updateBlockedIPsTable() {
             const blockedTable = document.getElementById('blockedIpsTable');
             blockedTable.innerHTML = '';
@@ -891,11 +1078,9 @@
                 blockedTable.appendChild(row);
             });
 
-            // Update blocked IPs count in summary
             document.getElementById('blockedIpsCount').textContent = blockedIPs.length;
         }
 
-        // Update unblocked IPs table
         function updateUnblockedIPsTable() {
             const unblockedTable = document.getElementById('unblockedIpsTable');
             unblockedTable.innerHTML = '';
@@ -909,16 +1094,7 @@
                 const row = document.createElement('tr');
                 row.classList.add('unblocked-ip-row');
 
-                // Calculate block duration
-                const blockedTime = new Date(unblocked.blockedAt);
-                const unblockedTime = new Date(unblocked.unblockedAt);
-                const durationMs = unblockedTime - blockedTime;
-                const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
-                const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-
-                const durationText = durationHours > 0 ?
-                    `${durationHours}h ${durationMinutes}m` :
-                    `${durationMinutes}m`;
+                const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
 
                 row.innerHTML = `
                     <td>${unblocked.ip}</td>
@@ -926,25 +1102,60 @@
                     <td>${unblocked.unblockedAt}</td>
                     <td>${unblocked.reason}</td>
                     <td>${unblocked.eventCount}</td>
-                    <td>${durationText}</td>
+                    <td>${duration}</td>
                 `;
                 unblockedTable.appendChild(row);
             });
         }
 
-        // Block IP address
+        function updateSummaryStatistics() {
+            document.getElementById('totalAttacks').textContent = securityEvents.length;
+            document.getElementById('failedLogins').textContent = securityEvents.filter(e =>
+                e.eventType.includes('Failed') || e.eventType.includes('Login')
+            ).length;
+            document.getElementById('bruteForceAttempts').textContent = securityEvents.filter(e =>
+                e.eventType.includes('Brute') || e.eventType.includes('Force')
+            ).length;
+            document.getElementById('blockedIpsCount').textContent = blockedIPs.length;
+        }
+
+        function updateChartsWithRealData() {
+            if (!charts.failedLogins || !charts.successfulLogins || !charts.severity || !charts.ipFrequency) return;
+
+            // Update failed logins chart
+            charts.failedLogins.data.labels = loginStats.hours;
+            charts.failedLogins.data.datasets[0].data = loginStats.failedByHour;
+            charts.failedLogins.update();
+
+            // Update successful logins chart
+            charts.successfulLogins.data.labels = loginStats.hours;
+            charts.successfulLogins.data.datasets[0].data = loginStats.successfulByHour;
+            charts.successfulLogins.update();
+
+            // Update severity chart
+            const severityDist = getSeverityDistribution();
+            charts.severity.data.datasets[0].data = [severityDist.critical, severityDist.warning, severityDist.normal];
+            charts.severity.update();
+
+            // Update IP frequency chart
+            const ipFrequency = getIPFrequency().slice(0, 8); // Top 8 IPs
+            charts.ipFrequency.data.labels = ipFrequency.map(ip => ip.ip);
+            charts.ipFrequency.data.datasets[0].data = ipFrequency.map(ip => ip.count);
+            charts.ipFrequency.update();
+        }
+
+        // ============================================
+        // IP BLOCKING/UNBLOCKING FUNCTIONS
+        // ============================================
         function blockIP(ip, reason) {
-            // Check if IP is already blocked
             if (blockedIPs.some(blocked => blocked.ip === ip)) {
                 showToast('IP address is already blocked', 'error');
                 return;
             }
 
-            // Count events from this IP
             const eventCount = securityEvents.filter(event => event.ip === ip).length;
-
-            // Add to blocked IPs list
             const blockedAt = new Date().toLocaleString();
+
             blockedIPs.push({
                 ip: ip,
                 blockedAt: blockedAt,
@@ -952,49 +1163,36 @@
                 eventCount: eventCount
             });
 
-            // Update tables
             updateSecurityEventsTable();
             updateBlockedIPsTable();
+            updateSummaryStatistics();
 
-            // Show success message
-            showToast(`IP address ${ip} has been blocked successfully`, 'success');
-
-            // In a real implementation, this would send a request to the backend
-            console.log(`Blocking IP: ${ip} for reason: ${reason}`);
+            showToast(`IP address ${ip} has been blocked`, 'success');
         }
 
-        // Unblock IP address
         function unblockIP(ip) {
-            // Find the blocked IP record
             const blockedIP = blockedIPs.find(blocked => blocked.ip === ip);
             if (!blockedIP) {
                 showToast('IP address not found in blocked list', 'error');
                 return;
             }
 
-            // Add to unblocked IPs history
             const unblockedAt = new Date().toLocaleString();
             unblockedIPs.push({
                 ...blockedIP,
                 unblockedAt: unblockedAt
             });
 
-            // Remove from blocked IPs list
             blockedIPs = blockedIPs.filter(blocked => blocked.ip !== ip);
 
-            // Update tables
             updateSecurityEventsTable();
             updateBlockedIPsTable();
             updateUnblockedIPsTable();
+            updateSummaryStatistics();
 
-            // Show success message
             showToast(`IP address ${ip} has been unblocked`, 'success');
-
-            // In a real implementation, this would send a request to the backend
-            console.log(`Unblocking IP: ${ip}`);
         }
 
-        // Clear all blocked IPs
         function clearAllBlocks() {
             if (blockedIPs.length === 0) {
                 showToast('No IP addresses to unblock', 'info');
@@ -1002,7 +1200,6 @@
             }
 
             if (confirm('Are you sure you want to unblock all IP addresses?')) {
-                // Add all blocked IPs to unblocked history
                 const unblockedAt = new Date().toLocaleString();
                 blockedIPs.forEach(blocked => {
                     unblockedIPs.push({
@@ -1015,11 +1212,11 @@
                 updateSecurityEventsTable();
                 updateBlockedIPsTable();
                 updateUnblockedIPsTable();
+                updateSummaryStatistics();
                 showToast('All IP addresses have been unblocked', 'success');
             }
         }
 
-        // Clear unblocked history
         function clearUnblockedHistory() {
             if (unblockedIPs.length === 0) {
                 showToast('No unblocked IP history to clear', 'info');
@@ -1033,7 +1230,176 @@
             }
         }
 
-        // Show toast notification
+        // ============================================
+        // CHART FUNCTIONS
+        // ============================================
+        function initializeCharts() {
+            // Failed Logins Per Hour Chart
+            const failedCtx = document.getElementById('failedLoginsChart').getContext('2d');
+            charts.failedLogins = new Chart(failedCtx, {
+                type: 'line',
+                data: {
+                    labels: loginStats.hours,
+                    datasets: [{
+                        label: 'Failed Logins',
+                        data: loginStats.failedByHour,
+                        borderColor: '#cc0000',
+                        backgroundColor: 'rgba(204, 0, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e6e6e6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        }
+                    }
+                }
+            });
+
+            // Successful Logins Per Hour Chart
+            const successCtx = document.getElementById('successfulLoginsChart').getContext('2d');
+            charts.successfulLogins = new Chart(successCtx, {
+                type: 'line',
+                data: {
+                    labels: loginStats.hours,
+                    datasets: [{
+                        label: 'Successful Logins',
+                        data: loginStats.successfulByHour,
+                        borderColor: '#77b300',
+                        backgroundColor: 'rgba(119, 179, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e6e6e6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        }
+                    }
+                }
+            });
+
+            // Severity Distribution Chart
+            const severityCtx = document.getElementById('severityChart').getContext('2d');
+            charts.severity = new Chart(severityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Critical', 'Warning', 'Normal'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#cc0000', '#ff8800', '#77b300'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#e6e6e6',
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+
+            // IP Frequency Chart
+            const ipCtx = document.getElementById('ipFrequencyChart').getContext('2d');
+            charts.ipFrequency = new Chart(ipCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Attack Frequency',
+                        data: [],
+                        backgroundColor: '#2a9fd6'
+                    }]
+            },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e6e6e6' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(45, 55, 70, 0.5)' },
+                            ticks: { color: '#e6e6e6' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function getSeverityDistribution() {
+            const critical = securityEvents.filter(e => e.severity === 'Critical').length;
+            const warning = securityEvents.filter(e => e.severity === 'Warning').length;
+            const normal = securityEvents.filter(e => e.severity === 'Normal').length;
+            return { critical, warning, normal };
+        }
+
+        function getIPFrequency() {
+            const ipCounts = {};
+            securityEvents.forEach(event => {
+                ipCounts[event.ip] = (ipCounts[event.ip] || 0) + 1;
+            });
+
+            return Object.entries(ipCounts)
+                .map(([ip, count]) => ({ ip, count }))
+                .sort((a, b) => b.count - a.count);
+        }
+
+        function calculateBlockDuration(blockedAt, unblockedAt) {
+            const blockedTime = new Date(blockedAt);
+            const unblockedTime = new Date(unblockedAt);
+            const durationMs = unblockedTime - blockedTime;
+            const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+            const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+            return durationHours > 0 ?
+                `${durationHours}h ${durationMinutes}m` :
+                `${durationMinutes}m`;
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
         function showToast(message, type = 'info') {
             const toastContainer = document.getElementById('toastContainer');
             const toastId = 'toast-' + Date.now();
@@ -1058,68 +1424,77 @@
             `;
 
             toastContainer.appendChild(toast);
-
             const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
             bsToast.show();
 
-            // Remove toast from DOM after it's hidden
-            toast.addEventListener('hidden.bs.toast', () => {
-                toast.remove();
-            });
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
         }
 
-        // Format date for display - handle date-only inputs properly
-        function formatDateForDisplay(dateString) {
-            if (!dateString) return 'Not specified';
+        function applyFilters() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const severity = document.getElementById('severityFilter').value;
+            const eventType = document.getElementById('eventTypeFilter').value;
 
-            // For date-only inputs (YYYY-MM-DD), create date without time component
-            if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString(); // Only show date, no time
+            // For now, just filter the local data
+            let filteredEvents = [...securityEvents];
+
+            if (startDate) {
+                filteredEvents = filteredEvents.filter(event =>
+                    new Date(event.time) >= new Date(startDate)
+                );
             }
 
-            // For datetime inputs, show both date and time
-            const date = new Date(dateString);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        }
-
-        // Get time period display text
-        function getTimePeriodDisplay() {
-            const reportPeriod = document.getElementById('reportPeriod').value;
-
-            if (reportPeriod === 'custom') {
-                const startDate = document.getElementById('customStartDate').value;
-                const endDate = document.getElementById('customEndDate').value;
-
-                if (startDate && endDate) {
-                    // For custom date range, just show the dates without times
-                    const start = new Date(startDate).toLocaleDateString();
-                    const end = new Date(endDate).toLocaleDateString();
-                    return `${start} to ${end}`;
-                } else {
-                    return 'Custom Range (dates not specified)';
-                }
-            } else {
-                // Return the selected option text for predefined periods
-                const select = document.getElementById('reportPeriod');
-                return select.options[select.selectedIndex].text;
+            if (endDate) {
+                filteredEvents = filteredEvents.filter(event =>
+                    new Date(event.time) <= new Date(endDate)
+                );
             }
+
+            if (severity !== 'all') {
+                filteredEvents = filteredEvents.filter(event =>
+                    event.severity.toLowerCase() === severity
+                );
+            }
+
+            if (eventType !== 'all') {
+                filteredEvents = filteredEvents.filter(event =>
+                    event.eventType.toLowerCase().replace(' ', '-') === eventType
+                );
+            }
+
+            // Temporarily use filtered data for display
+            const originalEvents = securityEvents;
+            securityEvents = filteredEvents;
+            updateSecurityEventsTable();
+            updateSummaryStatistics();
+            securityEvents = originalEvents; // Restore original data
+
+            showToast(`Filters applied: ${filteredEvents.length} events found`, 'success');
         }
 
-        // Generate report function
+        function resetFilters() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('severityFilter').value = 'all';
+            document.getElementById('eventTypeFilter').value = 'all';
+            updateSecurityEventsTable();
+            updateSummaryStatistics();
+            showToast('Filters reset', 'info');
+        }
+
+        // ============================================
+        // REPORT FUNCTIONS
+        // ============================================
         function generateReport() {
             const reportType = document.getElementById('reportType').value;
             const reportPeriod = getTimePeriodDisplay();
             const reportFormat = document.getElementById('reportFormat').value;
 
-            // Hide placeholder and show report content
             document.getElementById('reportPlaceholder').style.display = 'none';
             document.getElementById('reportContent').style.display = 'block';
 
-            // Generate report content based on selections
             const reportContent = document.getElementById('reportContent');
-
-            // Calculate metrics for the report
             const severityDist = getSeverityDistribution();
             const ipFrequency = getIPFrequency();
 
@@ -1132,9 +1507,8 @@
 
                 <div class="report-section-title">Security Summary</div>
                 <div class="report-metric"><strong>Total Attacks:</strong> ${securityEvents.length}</div>
-                <div class="report-metric"><strong>Failed Logins:</strong> ${securityEvents.filter(e => e.eventType === 'Failed Login').length}</div>
-                <div class="report-metric"><strong>Brute Force Attempts:</strong> ${securityEvents.filter(e => e.eventType === 'Brute Force').length}</div>
-                <div class="report-metric"><strong>Successful Logins:</strong> ${securityEvents.filter(e => e.eventType === 'Successful Login').length}</div>
+                <div class="report-metric"><strong>Failed Logins:</strong> ${securityEvents.filter(e => e.eventType.includes('Failed') || e.eventType.includes('Login')).length}</div>
+                <div class="report-metric"><strong>Brute Force Attempts:</strong> ${securityEvents.filter(e => e.eventType.includes('Brute') || e.eventType.includes('Force')).length}</div>
                 <div class="report-metric"><strong>Currently Blocked IPs:</strong> ${blockedIPs.length}</div>
                 <div class="report-metric"><strong>Historically Unblocked IPs:</strong> ${unblockedIPs.length}</div>
 
@@ -1198,34 +1572,6 @@
                 </table>
                 ` : ''}
 
-                <div class="report-section-title">Failed Logins Per Hour</div>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            ${loginStats.failedByHour.map(count => `<td>${count}</td>`).join('')}
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="report-section-title">Successful Logins Per Hour</div>
-                <table class="report-table">
-                    <thead>
-                        <tr>
-                            ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            ${loginStats.successfulByHour.map(count => `<td>${count}</td>`).join('')}
-                        </tr>
-                    </tbody>
-                </table>
-
                 <div class="mt-4">
                     <button class="btn btn-cyber" onclick="downloadReport('${reportFormat}')">
                         <i class="fas fa-download me-2"></i>Download ${reportFormat.toUpperCase()} Report
@@ -1234,746 +1580,29 @@
             `;
         }
 
-        // Download report function
-        function downloadReport(format) {
-            const reportType = document.getElementById('reportType').value;
-            const reportPeriod = getTimePeriodDisplay();
-
-            switch(format) {
-                case 'pdf':
-                    downloadPDFReport(reportType, reportPeriod);
-                    break;
-                case 'html':
-                    downloadHTMLReport(reportType, reportPeriod);
-                    break;
-                case 'csv':
-                    downloadCSVReport(reportType, reportPeriod);
-                    break;
-            }
-
-            showToast(`${format.toUpperCase()} report downloaded successfully`, 'success');
-        }
-
-        // Calculate severity distribution
-        function getSeverityDistribution() {
-            const critical = securityEvents.filter(e => e.severity === 'Critical').length;
-            const warning = securityEvents.filter(e => e.severity === 'Warning').length;
-            const normal = securityEvents.filter(e => e.severity === 'Normal').length;
-            return { critical, warning, normal };
-        }
-
-        // Get IP frequency data
-        function getIPFrequency() {
-            const ipCounts = {};
-            securityEvents.forEach(event => {
-                ipCounts[event.ip] = (ipCounts[event.ip] || 0) + 1;
-            });
-
-            // Convert to array and sort by frequency
-            return Object.entries(ipCounts)
-                .map(([ip, count]) => ({ ip, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 10); // Top 10 IPs
-        }
-
-        // Calculate block duration for unblocked IPs
-        function calculateBlockDuration(blockedAt, unblockedAt) {
-            const blockedTime = new Date(blockedAt);
-            const unblockedTime = new Date(unblockedAt);
-            const durationMs = unblockedTime - blockedTime;
-            const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
-            const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-
-            return durationHours > 0 ?
-                `${durationHours}h ${durationMinutes}m` :
-                `${durationMinutes}m`;
-        }
-
-        // Download PDF Report
-        function downloadPDFReport(reportType, reportPeriod) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            let yPosition = 20;
-
-            // Set font to Times New Roman
-            doc.setFont("Times", "normal");
-
-            // Header
-            doc.setFontSize(20);
-            doc.text('CyberPulse Security Report', 20, yPosition);
-            yPosition += 15;
-
-            doc.setFontSize(12);
-            doc.text(`Report Type: ${reportType}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Time Period: ${reportPeriod}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPosition);
-            yPosition += 15;
-
-            // Security Summary
-            doc.setFontSize(16);
-            doc.text('Security Summary', 20, yPosition);
-            yPosition += 10;
-
-            doc.setFontSize(12);
-            const severityDist = getSeverityDistribution();
-            doc.text(`Total Attacks: ${securityEvents.length}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Failed Logins: ${securityEvents.filter(e => e.eventType === 'Failed Login').length}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Brute Force Attempts: ${securityEvents.filter(e => e.eventType === 'Brute Force').length}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Successful Logins: ${securityEvents.filter(e => e.eventType === 'Successful Login').length}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Currently Blocked IPs: ${blockedIPs.length}`, 20, yPosition);
-            yPosition += 7;
-            doc.text(`Historically Unblocked IPs: ${unblockedIPs.length}`, 20, yPosition);
-            yPosition += 10;
-
-            // Alert Severity Distribution
-            doc.text(`Severity Level - Critical: ${severityDist.critical}, Warning: ${severityDist.warning}, Normal: ${severityDist.normal}`, 20, yPosition);
-            yPosition += 15;
-
-            // Currently Blocked IPs
-            if (blockedIPs.length > 0) {
-                doc.text('Currently Blocked IP Addresses:', 20, yPosition);
-                yPosition += 7;
-                blockedIPs.forEach(blocked => {
-                    if (yPosition > 270) {
-                        doc.addPage();
-                        yPosition = 20;
-                    }
-                    doc.text(`${blocked.ip} - Blocked: ${blocked.blockedAt} - Reason: ${blocked.reason} - Events: ${blocked.eventCount}`, 25, yPosition);
-                    yPosition += 7;
-                });
-                yPosition += 10;
-            }
-
-            // Unblocked IPs History
-            if (unblockedIPs.length > 0) {
-                doc.text('Historically Unblocked IP Addresses:', 20, yPosition);
-                yPosition += 7;
-                unblockedIPs.forEach(unblocked => {
-                    if (yPosition > 270) {
-                        doc.addPage();
-                        yPosition = 20;
-                    }
-                    const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
-                    doc.text(`${unblocked.ip} - Blocked: ${unblocked.blockedAt} - Unblocked: ${unblocked.unblockedAt} - Duration: ${duration} - Reason: ${unblocked.reason}`, 25, yPosition);
-                    yPosition += 7;
-                });
-                yPosition += 10;
-            }
-
-            // Failed Logins Per Hour
-            doc.text('Failed Logins Per Hour:', 20, yPosition);
-            yPosition += 7;
-            loginStats.hours.forEach((hour, index) => {
-                if (yPosition > 270) {
-                    doc.addPage();
-                    yPosition = 20;
+        function getTimePeriodDisplay() {
+            const reportPeriod = document.getElementById('reportPeriod').value;
+            if (reportPeriod === 'custom') {
+                const startDate = document.getElementById('customStartDate').value;
+                const endDate = document.getElementById('customEndDate').value;
+                if (startDate && endDate) {
+                    const start = new Date(startDate).toLocaleDateString();
+                    const end = new Date(endDate).toLocaleDateString();
+                    return `${start} to ${end}`;
                 }
-                doc.text(`${hour}: ${loginStats.failedByHour[index]} failed logins`, 25, yPosition);
-                yPosition += 7;
-            });
-            yPosition += 5;
-
-            // Successful Logins Per Hour
-            doc.text('Successful Logins Per Hour:', 20, yPosition);
-            yPosition += 7;
-            loginStats.hours.forEach((hour, index) => {
-                if (yPosition > 270) {
-                    doc.addPage();
-                    yPosition = 20;
-                }
-                doc.text(`${hour}: ${loginStats.successfulByHour[index]} successful logins`, 25, yPosition);
-                yPosition += 7;
-            });
-            yPosition += 10;
-
-            // IP Frequency
-            const ipFrequency = getIPFrequency();
-            doc.text('Top IP Addresses by Frequency:', 20, yPosition);
-            yPosition += 7;
-            ipFrequency.forEach(ip => {
-                if (yPosition > 270) {
-                    doc.addPage();
-                    yPosition = 20;
-                }
-                doc.text(`${ip.ip}: ${ip.count} events`, 25, yPosition);
-                yPosition += 7;
-            });
-            yPosition += 10;
-
-            // Security Events Table
-            doc.text('Security Events:', 20, yPosition);
-            yPosition += 10;
-
-            const tableColumns = ['Time', 'IP', 'Username', 'Event Type', 'Severity', 'Source'];
-            const tableRows = securityEvents.map(event => [
-                event.time,
-                event.ip,
-                event.username,
-                event.eventType,
-                event.severity,
-                event.source
-            ]);
-
-            doc.autoTable({
-                head: [tableColumns],
-                body: tableRows,
-                startY: yPosition,
-                theme: 'grid',
-                headStyles: { fillColor: [42, 159, 214] },
-                styles: { fontSize: 8 },
-                margin: { left: 20 }
-            });
-
-            doc.save(`cyberpulse-report-${new Date().getTime()}.pdf`);
-        }
-
-        // Download HTML Report
-        function downloadHTMLReport(reportType, reportPeriod) {
-            const severityDist = getSeverityDistribution();
-            const ipFrequency = getIPFrequency();
-
-            const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>CyberPulse Security Report</title>
-    <style>
-        body { font-family: 'Times New Roman', Times, serif; margin: 20px; }
-        .header { background: #2a9fd6; color: white; padding: 20px; border-radius: 5px; }
-        .summary { margin: 20px 0; }
-        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-        .metric-card { background: #f5f5f5; padding: 15px; border-radius: 5px; border-left: 4px solid #2a9fd6; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .critical { color: #cc0000; font-weight: bold; }
-        .warning { color: #ff8800; font-weight: bold; }
-        .normal { color: #77b300; font-weight: bold; }
-        .unblocked { background-color: #f8f9fa; }
-        .section-title { color: #2a9fd6; margin-top: 25px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #ddd; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>CyberPulse Security Report</h1>
-        <p><strong>Report Type:</strong> ${reportType}</p>
-        <p><strong>Time Period:</strong> ${reportPeriod}</p>
-        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-    </div>
-
-    <div class="section-title">Security Summary</div>
-    <div class="summary">
-        <div class="metrics">
-            <div class="metric-card">
-                <h3>Total Attacks</h3>
-                <p style="font-size: 24px; font-weight: bold;">${securityEvents.length}</p>
-            </div>
-            <div class="metric-card">
-                <h3>Failed Logins</h3>
-                <p style="font-size: 24px; font-weight: bold;" class="critical">${securityEvents.filter(e => e.eventType === 'Failed Login').length}</p>
-            </div>
-            <div class="metric-card">
-                <h3>Brute Force</h3>
-                <p style="font-size: 24px; font-weight: bold;" class="warning">${securityEvents.filter(e => e.eventType === 'Brute Force').length}</p>
-            </div>
-            <div class="metric-card">
-                <h3>Successful Logins</h3>
-                <p style="font-size: 24px; font-weight: bold;" class="normal">${securityEvents.filter(e => e.eventType === 'Successful Login').length}</p>
-            </div>
-            <div class="metric-card">
-                <h3>Blocked IPs</h3>
-                <p style="font-size: 24px; font-weight: bold;" class="warning">${blockedIPs.length}</p>
-            </div>
-            <div class="metric-card">
-                <h3>Unblocked IPs</h3>
-                <p style="font-size: 24px; font-weight: bold;">${unblockedIPs.length}</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="section-title">Severity Level</div>
-    <table>
-        <tr>
-            <th>Critical</th>
-            <th>Warning</th>
-            <th>Normal</th>
-        </tr>
-        <tr>
-            <td class="critical">${severityDist.critical}</td>
-            <td class="warning">${severityDist.warning}</td>
-            <td class="normal">${severityDist.normal}</td>
-        </tr>
-    </table>
-
-    ${blockedIPs.length > 0 ? `
-    <div class="section-title">Currently Blocked IP Addresses</div>
-    <table>
-        <thead>
-            <tr>
-                <th>IP Address</th>
-                <th>Blocked At</th>
-                <th>Reason</th>
-                <th>Events Count</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${blockedIPs.map(blocked => `
-                <tr>
-                    <td>${blocked.ip}</td>
-                    <td>${blocked.blockedAt}</td>
-                    <td>${blocked.reason}</td>
-                    <td>${blocked.eventCount}</td>
-                </tr>
-            `).join('')}
-        </tbody>
-    </table>
-    ` : ''}
-
-    ${unblockedIPs.length > 0 ? `
-    <div class="section-title">Historically Unblocked IP Addresses</div>
-    <table>
-        <thead>
-            <tr>
-                <th>IP Address</th>
-                <th>Originally Blocked</th>
-                <th>Unblocked At</th>
-                <th>Reason</th>
-                <th>Events Count</th>
-                <th>Block Duration</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${unblockedIPs.map(unblocked => {
-                const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
-                return `
-                <tr class="unblocked">
-                    <td>${unblocked.ip}</td>
-                    <td>${unblocked.blockedAt}</td>
-                    <td>${unblocked.unblockedAt}</td>
-                    <td>${unblocked.reason}</td>
-                    <td>${unblocked.eventCount}</td>
-                    <td>${duration}</td>
-                </tr>
-                `;
-            }).join('')}
-        </tbody>
-    </table>
-    ` : ''}
-
-    <div class="section-title">Failed Logins Per Hour</div>
-    <table>
-        <thead>
-            <tr>
-                ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                ${loginStats.failedByHour.map(count => `<td>${count}</td>`).join('')}
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="section-title">Successful Logins Per Hour</div>
-    <table>
-        <thead>
-            <tr>
-                ${loginStats.hours.map(hour => `<th>${hour}</th>`).join('')}
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                ${loginStats.successfulByHour.map(count => `<td>${count}</td>`).join('')}
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="section-title">Top IP Addresses by Frequency</div>
-    <table>
-        <thead>
-            <tr>
-                <th>IP Address</th>
-                <th>Event Count</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${ipFrequency.map(ip => `
-                <tr>
-                    <td>${ip.ip}</td>
-                    <td>${ip.count}</td>
-                </tr>
-            `).join('')}
-        </tbody>
-    </table>
-
-    <div class="section-title">Security Events</div>
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>IP Address</th>
-                <th>Username</th>
-                <th>Event Type</th>
-                <th>Severity</th>
-                <th>Source</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${securityEvents.map(event => `
-                <tr>
-                    <td>${event.time}</td>
-                    <td>${event.ip}</td>
-                    <td>${event.username}</td>
-                    <td>${event.eventType}</td>
-                    <td class="${event.severity.toLowerCase()}">${event.severity}</td>
-                    <td>${event.source}</td>
-                </tr>
-            `).join('')}
-        </tbody>
-    </table>
-</body>
-</html>`;
-
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cyberpulse-report-${new Date().getTime()}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // Download CSV Report
-        function downloadCSVReport(reportType, reportPeriod) {
-            const severityDist = getSeverityDistribution();
-            const ipFrequency = getIPFrequency();
-
-            let csvContent = 'CyberPulse Security Report\n';
-            csvContent += `Report Type,${reportType}\n`;
-            csvContent += `Time Period,${reportPeriod}\n`;
-            csvContent += `Generated,${new Date().toLocaleString()}\n\n`;
-
-            // Security Summary
-            csvContent += 'SECURITY SUMMARY\n';
-            csvContent += 'Metric,Value\n';
-            csvContent += `Total Attacks,${securityEvents.length}\n`;
-            csvContent += `Failed Logins,${securityEvents.filter(e => e.eventType === 'Failed Login').length}\n`;
-            csvContent += `Brute Force Attempts,${securityEvents.filter(e => e.eventType === 'Brute Force').length}\n`;
-            csvContent += `Successful Logins,${securityEvents.filter(e => e.eventType === 'Successful Login').length}\n`;
-            csvContent += `Currently Blocked IPs,${blockedIPs.length}\n`;
-            csvContent += `Historically Unblocked IPs,${unblockedIPs.length}\n\n`;
-
-            // Alert Severity Distribution
-            csvContent += 'SEVERITY LEVEL\n';
-            csvContent += 'Severity,Count\n';
-            csvContent += `Critical,${severityDist.critical}\n`;
-            csvContent += `Warning,${severityDist.warning}\n`;
-            csvContent += `Normal,${severityDist.normal}\n\n`;
-
-            // Currently Blocked IPs
-            if (blockedIPs.length > 0) {
-                csvContent += 'CURRENTLY BLOCKED IP ADDRESSES\n';
-                csvContent += 'IP Address,Blocked At,Reason,Events Count\n';
-                blockedIPs.forEach(blocked => {
-                    csvContent += `"${blocked.ip}","${blocked.blockedAt}","${blocked.reason}",${blocked.eventCount}\n`;
-                });
-                csvContent += '\n';
+                return 'Custom Range';
             }
-
-            // Unblocked IPs History
-            if (unblockedIPs.length > 0) {
-                csvContent += 'HISTORICALLY UNBLOCKED IP ADDRESSES\n';
-                csvContent += 'IP Address,Originally Blocked,Unblocked At,Reason,Events Count,Block Duration\n';
-                unblockedIPs.forEach(unblocked => {
-                    const duration = calculateBlockDuration(unblocked.blockedAt, unblocked.unblockedAt);
-                    csvContent += `"${unblocked.ip}","${unblocked.blockedAt}","${unblocked.unblockedAt}","${unblocked.reason}",${unblocked.eventCount},"${duration}"\n`;
-                });
-                csvContent += '\n';
-            }
-
-            // Failed Logins Per Hour
-            csvContent += 'FAILED LOGINS PER HOUR\n';
-            csvContent += 'Hour,Count\n';
-            loginStats.hours.forEach((hour, index) => {
-                csvContent += `${hour},${loginStats.failedByHour[index]}\n`;
-            });
-            csvContent += '\n';
-
-            // Successful Logins Per Hour
-            csvContent += 'SUCCESSFUL LOGINS PER HOUR\n';
-            csvContent += 'Hour,Count\n';
-            loginStats.hours.forEach((hour, index) => {
-                csvContent += `${hour},${loginStats.successfulByHour[index]}\n`;
-            });
-            csvContent += '\n';
-
-            // IP Frequency
-            csvContent += 'TOP IP ADDRESSES BY FREQUENCY\n';
-            csvContent += 'IP Address,Event Count\n';
-            ipFrequency.forEach(ip => {
-                csvContent += `${ip.ip},${ip.count}\n`;
-            });
-            csvContent += '\n';
-
-            // Security Events
-            csvContent += 'SECURITY EVENTS\n';
-            csvContent += 'Time,IP Address,Username,Event Type,Severity,Source\n';
-            securityEvents.forEach(event => {
-                csvContent += `"${event.time}","${event.ip}","${event.username}","${event.eventType}","${event.severity}","${event.source}"\n`;
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cyberpulse-report-${new Date().getTime()}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const select = document.getElementById('reportPeriod');
+            return select.options[select.selectedIndex].text;
         }
 
-        // Preview report function
         function previewReport() {
             showToast('Report preview would open in a new window when connected to backend', 'info');
         }
 
-        // Initialize all charts with empty data
-        function initializeCharts() {
-            const emptyData = [];
-            const emptyLabels = [];
-
-            // Failed Logins Per Hour Chart
-            const failedCtx = document.getElementById('failedLoginsChart').getContext('2d');
-            new Chart(failedCtx, {
-                type: 'line',
-                data: {
-                    labels: emptyLabels,
-                    datasets: [{
-                        label: 'Failed Logins',
-                        data: emptyData,
-                        borderColor: '#cc0000',
-                        backgroundColor: 'rgba(204, 0, 0, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Successful Logins Per Hour Chart
-            const successCtx = document.getElementById('successfulLoginsChart').getContext('2d');
-            new Chart(successCtx, {
-                type: 'line',
-                data: {
-                    labels: emptyLabels,
-                    datasets: [{
-                        label: 'Successful Logins',
-                        data: emptyData,
-                        borderColor: '#77b300',
-                        backgroundColor: 'rgba(119, 179, 0, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Severity Distribution Chart
-            const severityCtx = document.getElementById('severityChart').getContext('2d');
-            new Chart(severityCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Critical', 'Warning', 'Normal'],
-                    datasets: [{
-                        data: [0, 0, 0],
-                        backgroundColor: [
-                            '#cc0000',
-                            '#ff8800',
-                            '#77b300'
-                        ],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#e6e6e6',
-                                padding: 15
-                            }
-                        }
-                    }
-                }
-            });
-
-            // IP Frequency Chart
-            const ipCtx = document.getElementById('ipFrequencyChart').getContext('2d');
-            new Chart(ipCtx, {
-                type: 'bar',
-                data: {
-                    labels: emptyLabels,
-                    datasets: [{
-                        label: 'Attack Frequency',
-                        data: emptyData,
-                        backgroundColor: '#2a9fd6'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        },
-                        y: {
-                            grid: {
-                                color: 'rgba(45, 55, 70, 0.5)'
-                            },
-                            ticks: {
-                                color: '#e6e6e6'
-                            }
-                        }
-                    }
-                }
-            });
+        function downloadReport(format) {
+            showToast(`${format.toUpperCase()} report download would be implemented here`, 'info');
         }
-
-        // Apply filters function
-        function applyFilters() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const severity = document.getElementById('severityFilter').value;
-            const eventType = document.getElementById('eventTypeFilter').value;
-
-            // In a real implementation, this would filter the data from the backend
-            showToast(`Filters applied: ${severity !== 'all' ? severity + ' severity' : ''} ${eventType !== 'all' ? eventType + ' events' : ''}`);
-
-            // For now, we'll just show a message that filtering would happen
-            console.log('Filters would be applied to the data when connected to backend');
-        }
-
-        // Reset filters function
-        function resetFilters() {
-            document.getElementById('startDate').value = '';
-            document.getElementById('endDate').value = '';
-            document.getElementById('severityFilter').value = 'all';
-            document.getElementById('eventTypeFilter').value = 'all';
-
-            showToast('Filters reset to default values');
-        }
-
-        // Set default date values for filters
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set default datetime values for filters (current date/time)
-            const now = new Date();
-            const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-
-            // Format for datetime-local input
-            const formatDateTime = (date) => {
-                return date.toISOString().slice(0, 16);
-            };
-
-            document.getElementById('startDate').value = formatDateTime(oneHourAgo);
-            document.getElementById('endDate').value = formatDateTime(now);
-
-            // Set default dates for custom range
-            const today = new Date();
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(today.getDate() - 7);
-
-            document.getElementById('customStartDate').valueAsDate = oneWeekAgo;
-            document.getElementById('customEndDate').valueAsDate = today;
-
-            // Show/hide custom date range based on selection
-            document.getElementById('reportPeriod').addEventListener('change', function() {
-                const customDateRange = document.getElementById('customDateRange');
-                if (this.value === 'custom') {
-                    customDateRange.style.display = 'block';
-                } else {
-                    customDateRange.style.display = 'none';
-                }
-            });
-        });
     </script>
 </body>
 </html>
