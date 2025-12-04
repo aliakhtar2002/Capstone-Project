@@ -1,178 +1,222 @@
 [
   {
-    "id": 1,
-    "time": "2025-12-02T19:36:18.888054",
-    "type": "failed_login",
-    "ip": "192.168.1.190",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:43.671468",
+    "source_ip": "10.0.0.100",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 2,
-    "time": "2025-12-02T19:36:18.988327",
-    "type": "failed_login",
-    "ip": "192.168.1.100",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:43.871790",
+    "source_ip": "10.0.0.122",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 3,
-    "time": "2025-12-02T19:36:19.088552",
-    "type": "failed_login",
-    "ip": "192.168.1.117",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:44.072147",
+    "source_ip": "10.0.0.173",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 4,
-    "time": "2025-12-02T19:36:19.188762",
-    "type": "failed_login",
-    "ip": "192.168.1.122",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:44.272278",
+    "source_ip": "10.0.0.162",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 5,
-    "time": "2025-12-02T19:36:19.288976",
-    "type": "failed_login",
-    "ip": "192.168.1.127",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:44.472602",
+    "source_ip": "10.0.0.134",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 6,
-    "time": "2025-12-02T19:36:19.389202",
-    "type": "failed_login",
-    "ip": "192.168.1.110",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:44.672929",
+    "source_ip": "10.0.0.195",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 7,
-    "time": "2025-12-02T19:36:19.489418",
-    "type": "failed_login",
-    "ip": "192.168.1.180",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:44.873258",
+    "source_ip": "10.0.0.128",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 8,
-    "time": "2025-12-02T19:36:19.589598",
-    "type": "failed_login",
-    "ip": "192.168.1.114",
-    "user": "admin"
+    "timestamp": "2025-12-04T21:08:45.073662",
+    "source_ip": "10.0.0.160",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 9,
-    "time": "2025-12-02T19:36:19.689871",
-    "type": "port_scan",
-    "ip": "10.0.0.100"
+    "timestamp": "2025-12-04T21:08:45.273987",
+    "source_ip": "10.0.0.182",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 10,
-    "time": "2025-12-02T19:36:19.689908",
-    "type": "powershell_abuse",
-    "ip": "172.16.0.100"
+    "timestamp": "2025-12-04T21:08:45.474309",
+    "source_ip": "10.0.0.189",
+    "username": "admin",
+    "event_type": "failed_login",
+    "service": "ssh",
+    "simulation": "hydra_brute_force"
   },
   {
-    "id": 11,
-    "time": "2025-12-02T19:36:19.890203",
-    "type": "powershell_abuse",
-    "ip": "172.16.1.100"
+    "timestamp": "2025-12-04T21:08:45.681366",
+    "source_ip": "192.168.1.100",
+    "event_type": "port_scan",
+    "simulation": "nmap_scan"
   },
   {
-    "id": 12,
-    "time": "2025-12-02T19:36:20.090738",
-    "type": "powershell_abuse",
-    "ip": "172.16.2.100"
+    "timestamp": "2025-12-04T21:08:45.681430",
+    "source_ip": "10.0.0.50",
+    "command": "IEX (New-Object Net.WebClient).DownloadString()",
+    "event_type": "powershell_abuse",
+    "simulation": "powershell_attack"
   },
   {
-    "id": 13,
-    "time": "2025-12-02T19:36:20.291083",
-    "type": "privilege_escalation",
-    "ip": "10.10.10.10"
+    "timestamp": "2025-12-04T21:08:45.981810",
+    "source_ip": "10.0.0.50",
+    "command": "Start-Process -WindowStyle Hidden",
+    "event_type": "powershell_abuse",
+    "simulation": "powershell_attack"
   },
   {
-    "id": 14,
-    "time": "2025-12-02T19:36:20.291112",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:46.282191",
+    "source_ip": "10.0.0.50",
+    "command": "Get-Process | Where-Object {$_.CPU -gt 50}",
+    "event_type": "powershell_abuse",
+    "simulation": "powershell_attack"
   },
   {
-    "id": 15,
-    "time": "2025-12-02T19:36:22.291233",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:46.582702",
+    "source_ip": "172.16.0.100",
+    "username": "user1",
+    "command": "sudo cat /etc/shadow",
+    "event_type": "sudo_abuse",
+    "simulation": "sudo_abuse"
   },
   {
-    "id": 16,
-    "time": "2025-12-02T19:36:24.293323",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:46.582734",
+    "source_ip": "10.0.0.123",
+    "username": "user0",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 17,
-    "time": "2025-12-02T19:36:26.294665",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:48.584826",
+    "source_ip": "10.0.0.123",
+    "username": "user1",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 18,
-    "time": "2025-12-02T19:36:28.296826",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:50.586938",
+    "source_ip": "10.0.0.123",
+    "username": "user2",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 19,
-    "time": "2025-12-02T19:36:30.298972",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:52.588266",
+    "source_ip": "10.0.0.123",
+    "username": "user3",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 20,
-    "time": "2025-12-02T19:36:32.301082",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:54.590369",
+    "source_ip": "10.0.0.123",
+    "username": "user4",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 21,
-    "time": "2025-12-02T19:36:34.303194",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:56.591248",
+    "source_ip": "10.0.0.123",
+    "username": "user5",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 22,
-    "time": "2025-12-02T19:36:36.308228",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:08:58.593377",
+    "source_ip": "10.0.0.123",
+    "username": "user6",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 23,
-    "time": "2025-12-02T19:36:38.310339",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:00.595513",
+    "source_ip": "10.0.0.123",
+    "username": "user7",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 24,
-    "time": "2025-12-02T19:36:40.312446",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:02.597663",
+    "source_ip": "10.0.0.123",
+    "username": "user8",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 25,
-    "time": "2025-12-02T19:36:42.314787",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:04.598974",
+    "source_ip": "10.0.0.123",
+    "username": "user9",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 26,
-    "time": "2025-12-02T19:36:44.316539",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:06.601140",
+    "source_ip": "10.0.0.123",
+    "username": "user10",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 27,
-    "time": "2025-12-02T19:36:46.318653",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:08.603294",
+    "source_ip": "10.0.0.123",
+    "username": "user11",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   },
   {
-    "id": 28,
-    "time": "2025-12-02T19:36:48.320745",
-    "type": "failed_login",
-    "ip": "10.0.0.123"
+    "timestamp": "2025-12-04T21:09:10.605405",
+    "source_ip": "10.0.0.123",
+    "username": "user12",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
+  },
+  {
+    "timestamp": "2025-12-04T21:09:12.607515",
+    "source_ip": "10.0.0.123",
+    "username": "user13",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
+  },
+  {
+    "timestamp": "2025-12-04T21:09:14.609648",
+    "source_ip": "10.0.0.123",
+    "username": "user14",
+    "event_type": "failed_login",
+    "simulation": "rapid_failed_logins"
   }
 ]

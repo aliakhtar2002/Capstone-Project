@@ -1,0 +1,12 @@
+
+SOC INTEGRATION AUDIT REPORT
+========================================
+[PASS] API Health Endpoint
+[PASS] API Add Detection Endpoint
+[PASS] Docker Container Running
+[PASS] Git Remote Configured
+[PASS] GitHub Repo Reachable
+[PASS] Running on EC2
+========================================
+Audit complete.
+
