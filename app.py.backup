@@ -41,12 +41,6 @@ def add_detection():
     }
     detections.append(detection)
     security_alerts.append({
-        "event_type": detection["event_type"],
-        "source_ip": detection.get("ip_address", "0.0.0.0"),
-        "description": data.get("description", ""),
-        "timestamp": detection["timestamp"]
-    })
-    security_alerts.append({
         'event_type': detection['event_type'],
         'source_ip': detection.get('ip_address', '0.0.0.0'),
         'description': data.get('description', ''),

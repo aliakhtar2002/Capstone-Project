@@ -1,0 +1,15 @@
+--- app.py
++++ app.py
+@@ -27,6 +27,12 @@
+         'timestamp': datetime.now().isoformat()
+     }
+     detections.append(detection)
++    security_alerts.append({
++        'event_type': detection['event_type'],
++        'source_ip': detection.get('ip_address', '0.0.0.0'),
++        'description': data.get('description', ''),
++        'timestamp': detection['timestamp']
++    })
+     
+     # Log the detection
+     print(f"[API] Detection added: {detection}")
