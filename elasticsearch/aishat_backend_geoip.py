@@ -1,0 +1,642 @@
+#!/usr/bin/env python3
+"""
+aishat_backend.py - Backend server for Aishat's dashboard
+WITH GEOIP INTEGRATION for threat mapping
+Run: python aishat_backend.py
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from elasticsearch import Elasticsearch
+from datetime import datetime, timedelta
+import json
+import traceback
+import os
+
+# ===================== GEOIP SETUP =====================
+try:
+    import geoip2.database
+    GEOIP_AVAILABLE = True
+    
+    # Path to GeoIP database
+    GEOIP_DB_PATH = "/usr/share/geoip/GeoLite2-City.mmdb"
+    
+    if os.path.exists(GEOIP_DB_PATH):
+        try:
+            geoip_reader = geoip2.database.Reader(GEOIP_DB_PATH)
+            print("✅ GeoIP database loaded successfully")
+            print(f"   Database: {GEOIP_DB_PATH}")
+        except Exception as e:
+            print(f"⚠️  Could not load GeoIP database: {e}")
+            geoip_reader = None
+            GEOIP_AVAILABLE = False
+    else:
+        print(f"⚠️  GeoIP database not found at: {GEOIP_DB_PATH}")
+        print("   Download with: sudo wget -O /usr/share/geoip/GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb")
+        geoip_reader = None
+        GEOIP_AVAILABLE = False
+        
+except ImportError:
+    print("⚠️  geoip2 library not installed")
+    print("   Install with: pip install geoip2")
+    GEOIP_AVAILABLE = False
+    geoip_reader = None
+
+def get_geoip_info(ip_address):
+    """Get geographic information for an IP address"""
+    if not GEOIP_AVAILABLE or not geoip_reader or not ip_address or ip_address == 'Unknown':
+        return None
+    
+    try:
+        # Skip private IP ranges
+        if ip_address.startswith(('10.', '172.', '192.168.', '127.')):
+            return None
+        
+        response = geoip_reader.city(ip_address)
+        
+        geoip_data = {
+            "country": response.country.name if response.country.name else "Unknown",
+            "country_code": response.country.iso_code if response.country.iso_code else "",
+            "city": response.city.name if response.city.name else "",
+            "latitude": float(response.location.latitude) if response.location.latitude else 0,
+            "longitude": float(response.location.longitude) if response.location.longitude else 0,
+            "region": response.subdivisions.most_specific.name if response.subdivisions.most_specific else ""
+        }
+        
+        # Only return if we have at least country info
+        if geoip_data["country"] != "Unknown":
+            return geoip_data
+        else:
+            return None
+            
+    except Exception as e:
+        # Silently fail for IPs not in database
+        return None
+
+app = Flask(__name__)
+CORS(app)  # Allow frontend requests
+
+# ===================== CONFIGURATION =====================
+ELASTICSEARCH_HOST = "http://localhost:443"  # YOUR Elasticsearch
+INDEX_NAME = "security-events"
+
+# Connect to Elasticsearch
+try:
+    es = Elasticsearch([ELASTICSEARCH_HOST])
+    print(f"✅ Connected to Elasticsearch at {ELASTICSEARCH_HOST}")
+except Exception as e:
+    print(f"❌ Failed to connect to Elasticsearch: {e}")
+    es = None
+
+# In-memory storage for blocked IPs (for demo)
+blocked_ips = {}  # {ip: {ip: "1.2.3.4", blockedAt: "...", reason: "...", eventCount: 5}}
+unblocked_history = []
+
+# ===================== HELPER FUNCTIONS =====================
+def format_event_for_frontend(hit):
+    """Convert Elasticsearch event to Aishat's frontend format WITH GEOIP"""
+    event = hit['_source']
+    
+    # Parse timestamp
+    timestamp = event.get('@timestamp') or event.get('timestamp') or datetime.now().isoformat()
+    try:
+        formatted_time = datetime.fromisoformat(timestamp.replace('Z', '')).strftime('%Y-%m-%d %H:%M:%S')
+    except:
+        formatted_time = timestamp
+    
+    # Determine severity for frontend
+    severity_map = {
+        'critical': 'Critical',
+        'high': 'Warning', 
+        'medium': 'Warning',
+        'low': 'Normal',
+        'warning': 'Warning',
+        'normal': 'Normal'
+    }
+    frontend_severity = severity_map.get(event.get('severity', '').lower(), 'Warning')
+    
+    # Map event types
+    event_type = event.get('event_type', 'Unknown')
+    if 'failed' in event_type.lower() or 'brute' in event_type.lower():
+        frontend_event_type = 'Failed Login'
+    elif 'success' in event_type.lower():
+        frontend_event_type = 'Successful Login'
+    else:
+        frontend_event_type = event_type
+    
+    # Get IP and location
+    source_ip = event.get('source_ip', 'Unknown')
+    
+    # Create base event
+    frontend_event = {
+        'id': hit['_id'],
+        'time': formatted_time,
+        'ip': source_ip,
+        'username': event.get('username', 'Unknown'),
+        'eventType': frontend_event_type,
+        'severity': frontend_severity,
+        'source': event.get('analyst', 'External')
+    }
+    
+    # Add GeoIP location data
+    if source_ip != 'Unknown':
+        geoip_info = get_geoip_info(source_ip)
+        if geoip_info:
+            frontend_event['location'] = geoip_info
+            # Add location string for display
+            location_parts = []
+            if geoip_info.get('city'):
+                location_parts.append(geoip_info['city'])
+            if geoip_info.get('country'):
+                location_parts.append(geoip_info['country'])
+            if location_parts:
+                frontend_event['locationString'] = ', '.join(location_parts)
+    
+    return frontend_event
+
+def get_event_count_for_ip(ip_address):
+    """Count how many events from this IP"""
+    if not es or not ip_address or ip_address == 'Unknown':
+        return 1
+    
+    try:
+        response = es.count(
+            index=INDEX_NAME,
+            body={"query": {"term": {"source_ip": ip_address}}}
+        )
+        return response['count']
+    except:
+        return 1
+
+# ===================== API ENDPOINTS =====================
+
+@app.route('/api/events', methods=['GET'])
+def get_security_events():
+    """Get all security events for Aishat's dashboard WITH LOCATIONS"""
+    if not es:
+        return jsonify([{
+            "id": "error",
+            "time": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "ip": "0.0.0.0",
+            "username": "System",
+            "eventType": "Elasticsearch Error",
+            "severity": "Critical",
+            "source": "Backend"
+        }])
+    
+    try:
+        # Query Elasticsearch
+        response = es.search(
+            index=INDEX_NAME,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"@timestamp": {"order": "desc"}}],
+                "size": 100
+            }
+        )
+        
+        # Format events for frontend
+        events = []
+        for hit in response['hits']['hits']:
+            events.append(format_event_for_frontend(hit))
+        
+        return jsonify(events)
+        
+    except Exception as e:
+        print(f"Error reading events: {traceback.format_exc()}")
+        return jsonify([]), 500
+
+@app.route('/api/events/geolocated', methods=['GET'])
+def get_geolocated_events():
+    """Get events with geographic data for threat map"""
+    if not es:
+        return jsonify([])
+    
+    try:
+        response = es.search(
+            index=INDEX_NAME,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"@timestamp": {"order": "desc"}}],
+                "size": 100
+            }
+        )
+        
+        geolocated_events = []
+        for hit in response['hits']['hits']:
+            event = hit['_source']
+            source_ip = event.get('source_ip', 'Unknown')
+            
+            # Get GeoIP info
+            geoip_info = get_geoip_info(source_ip)
+            if geoip_info and geoip_info.get('latitude') and geoip_info.get('longitude'):
+                geolocated_event = {
+                    'id': hit['_id'],
+                    'ip': source_ip,
+                    'event_type': event.get('event_type', 'Unknown'),
+                    'severity': event.get('severity', 'Unknown'),
+                    'timestamp': event.get('@timestamp') or event.get('timestamp'),
+                    'latitude': geoip_info['latitude'],
+                    'longitude': geoip_info['longitude'],
+                    'country': geoip_info.get('country', ''),
+                    'city': geoip_info.get('city', ''),
+                    'count': 1
+                }
+                geolocated_events.append(geolocated_event)
+        
+        # Aggregate by location for heatmap
+        aggregated = {}
+        for event in geolocated_events:
+            key = f"{event['latitude']},{event['longitude']}"
+            if key in aggregated:
+                aggregated[key]['count'] += 1
+            else:
+                aggregated[key] = event
+        
+        return jsonify(list(aggregated.values()))
+        
+    except Exception as e:
+        print(f"Error getting geolocated events: {e}")
+        return jsonify([])
+
+@app.route('/api/threat-map', methods=['GET'])
+def get_threat_map_data():
+    """Get data specifically for threat map visualization"""
+    if not es:
+        return jsonify({"error": "Elasticsearch not connected"})
+    
+    try:
+        # Get events from last 24 hours
+        time_threshold = (datetime.now() - timedelta(hours=24)).isoformat()
+        
+        response = es.search(
+            index=INDEX_NAME,
+            body={
+                "query": {
+                    "range": {
+                        "@timestamp": {
+                            "gte": time_threshold
+                        }
+                    }
+                },
+                "aggs": {
+                    "by_country": {
+                        "terms": {
+                            "field": "source_ip",
+                            "size": 50
+                        }
+                    }
+                },
+                "size": 0
+            }
+        )
+        
+        # Process IPs with GeoIP
+        threat_data = {
+            "locations": [],  # For map markers
+            "countries": {},   # For country breakdown
+            "timeline": []     # For time-based attacks
+        }
+        
+        # Sample some events for map markers
+        sample_response = es.search(
+            index=INDEX_NAME,
+            body={
+                "query": {"range": {"@timestamp": {"gte": time_threshold}}},
+                "size": 50
+            }
+        )
+        
+        for hit in sample_response['hits']['hits']:
+            event = hit['_source']
+            source_ip = event.get('source_ip')
+            if source_ip:
+                geoip_info = get_geoip_info(source_ip)
+                if geoip_info and geoip_info.get('latitude') and geoip_info.get('longitude'):
+                    threat_data["locations"].append({
+                        "lat": geoip_info['latitude'],
+                        "lng": geoip_info['longitude'],
+                        "count": 1,
+                        "country": geoip_info.get('country', 'Unknown'),
+                        "city": geoip_info.get('city', ''),
+                        "ip": source_ip,
+                        "severity": event.get('severity', 'medium')
+                    })
+        
+        # Count by country
+        for ip_bucket in response['aggregations']['by_country']['buckets']:
+            ip = ip_bucket['key']
+            geoip_info = get_geoip_info(ip)
+            if geoip_info and geoip_info.get('country'):
+                country = geoip_info['country']
+                threat_data["countries"][country] = threat_data["countries"].get(country, 0) + ip_bucket['doc_count']
+        
+        return jsonify(threat_data)
+        
+    except Exception as e:
+        print(f"Error getting threat map data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/events', methods=['POST'])
+def add_security_event():
+    """Add new event (for Waad & Victoria to send attacks)"""
+    if not es:
+        return jsonify({"error": "Elasticsearch not connected"}), 500
+    
+    try:
+        event_data = request.json
+        
+        # Add metadata
+        if 'timestamp' not in event_data:
+            event_data['timestamp'] = datetime.now().isoformat()
+        if '@timestamp' not in event_data:
+            event_data['@timestamp'] = datetime.now().isoformat()
+        
+        # Add GeoIP data if IP is provided
+        source_ip = event_data.get('source_ip')
+        if source_ip and GEOIP_AVAILABLE:
+            geoip_info = get_geoip_info(source_ip)
+            if geoip_info:
+                event_data['geoip'] = geoip_info
+        
+        # Store in Elasticsearch
+        response = es.index(index=INDEX_NAME, document=event_data)
+        
+        return jsonify({
+            "status": "success",
+            "id": response['_id'],
+            "message": "Event stored in Elasticsearch",
+            "database": "Grishab's Elasticsearch",
+            "has_geoip": geoip_info is not None if source_ip else False
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/blocked', methods=['GET'])
+def get_blocked_ips():
+    """Get currently blocked IPs"""
+    return jsonify(list(blocked_ips.values()))
+
+@app.route('/api/unblocked', methods=['GET'])
+def get_unblocked_ips():
+    """Get unblocked IP history"""
+    return jsonify(unblocked_history)
+
+@app.route('/api/block', methods=['POST'])
+def block_ip():
+    """Block an IP address"""
+    data = request.json
+    ip_address = data.get('ip')
+    reason = data.get('reason', 'Multiple failed login attempts')
+    
+    if not ip_address:
+        return jsonify({"error": "IP address required"}), 400
+    
+    # Check if already blocked
+    if ip_address in blocked_ips:
+        return jsonify({"status": "already_blocked", "ip": ip_address}), 200
+    
+    # Count events from this IP
+    event_count = get_event_count_for_ip(ip_address)
+    
+    # Add GeoIP info if available
+    geoip_info = get_geoip_info(ip_address)
+    
+    # Add to blocked list
+    blocked_info = {
+        'ip': ip_address,
+        'blockedAt': datetime.now().isoformat(),
+        'reason': reason,
+        'eventCount': event_count
+    }
+    
+    if geoip_info:
+        blocked_info['location'] = geoip_info
+    
+    blocked_ips[ip_address] = blocked_info
+    
+    print(f"🔒 Blocked IP: {ip_address} ({reason})")
+    if geoip_info:
+        print(f"   Location: {geoip_info.get('country', 'Unknown')}")
+    
+    return jsonify({"status": "blocked", "ip": ip_address, "location": geoip_info})
+
+@app.route('/api/unblock', methods=['POST'])
+def unblock_ip():
+    """Unblock an IP address"""
+    data = request.json
+    ip_address = data.get('ip')
+    
+    if not ip_address:
+        return jsonify({"error": "IP address required"}), 400
+    
+    # Check if actually blocked
+    if ip_address not in blocked_ips:
+        return jsonify({"error": "IP not blocked"}), 404
+    
+    # Move to unblocked history
+    blocked_info = blocked_ips.pop(ip_address)
+    blocked_info['unblockedAt'] = datetime.now().isoformat()
+    unblocked_history.append(blocked_info)
+    
+    print(f"🔓 Unblocked IP: {ip_address}")
+    return jsonify({"status": "unblocked", "ip": ip_address})
+
+@app.route('/api/clear-blocks', methods=['POST'])
+def clear_all_blocks():
+    """Unblock all IPs"""
+    unblocked_at = datetime.now().isoformat()
+    
+    # Move all blocked IPs to history
+    for ip_address, info in list(blocked_ips.items()):
+        info['unblockedAt'] = unblocked_at
+        unblocked_history.append(info)
+    
+    blocked_ips.clear()
+    
+    print(f"🧹 Cleared all blocked IPs")
+    return jsonify({"status": "cleared", "count": len(unblocked_history)})
+
+@app.route('/api/stats', methods=['GET'])
+def get_dashboard_stats():
+    """Get statistics for Aishat's dashboard summary"""
+    if not es:
+        return jsonify({
+            "total_events": 0,
+            "failed_logins": 0,
+            "brute_force_attempts": 0,
+            "blocked_ips_count": len(blocked_ips),
+            "geoip_enabled": GEOIP_AVAILABLE,
+            "source": "Backend (Elasticsearch offline)"
+        })
+    
+    try:
+        # Total events
+        total_response = es.count(index=INDEX_NAME)
+        total_events = total_response['count']
+        
+        # Failed logins count
+        failed_response = es.count(
+            index=INDEX_NAME,
+            body={"query": {"term": {"event_type": "failed_login"}}}
+        )
+        failed_logins = failed_response.get('count', 0)
+        
+        # Brute force attempts
+        brute_response = es.count(
+            index=INDEX_NAME,
+            body={"query": {"term": {"event_type": "brute_force"}}}
+        )
+        brute_force = brute_response.get('count', 0)
+        
+        # Events with GeoIP data
+        geoip_response = es.count(
+            index=INDEX_NAME,
+            body={"query": {"exists": {"field": "geoip"}}}
+        )
+        events_with_geoip = geoip_response.get('count', 0)
+        
+        # Top attacking countries
+        country_aggs = es.search(
+            index=INDEX_NAME,
+            body={
+                "size": 0,
+                "aggs": {
+                    "source_ips": {
+                        "terms": {"field": "source_ip", "size": 20}
+                    }
+                }
+            }
+        )
+        
+        country_counts = {}
+        for bucket in country_aggs['aggregations']['source_ips']['buckets']:
+            ip = bucket['key']
+            geoip_info = get_geoip_info(ip)
+            if geoip_info and geoip_info.get('country'):
+                country = geoip_info['country']
+                country_counts[country] = country_counts.get(country, 0) + bucket['doc_count']
+        
+        # Sort countries by attack count
+        top_countries = sorted(country_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        return jsonify({
+            "total_events": total_events,
+            "failed_logins": failed_logins,
+            "brute_force_attempts": brute_force,
+            "blocked_ips_count": len(blocked_ips),
+            "geoip_enabled": GEOIP_AVAILABLE,
+            "events_with_location": events_with_geoip,
+            "top_attacking_countries": [{"country": c, "count": n} for c, n in top_countries],
+            "source": "Elasticsearch (Grishab's database)"
+        })
+        
+    except Exception as e:
+        print(f"Error getting stats: {e}")
+        return jsonify({
+            "total_events": 0,
+            "failed_logins": 0,
+            "brute_force_attempts": 0,
+            "blocked_ips_count": len(blocked_ips),
+            "geoip_enabled": GEOIP_AVAILABLE,
+            "source": f"Error: {str(e)}"
+        }), 500
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    es_status = "connected" if es else "disconnected"
+    return jsonify({
+        "status": "running",
+        "elasticsearch": es_status,
+        "geoip": "enabled" if GEOIP_AVAILABLE else "disabled",
+        "blocked_ips": len(blocked_ips),
+        "unblocked_history": len(unblocked_history),
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/api/test-geoip', methods=['GET'])
+def test_geoip():
+    """Test GeoIP functionality"""
+    test_ips = ["8.8.8.8", "1.1.1.1", "208.67.222.222", "192.168.1.1"]
+    
+    results = []
+    for ip in test_ips:
+        geoip_info = get_geoip_info(ip)
+        results.append({
+            "ip": ip,
+            "geoip": geoip_info,
+            "type": "private" if ip.startswith(('10.', '172.', '192.168.')) else "public"
+        })
+    
+    return jsonify({
+        "geoip_available": GEOIP_AVAILABLE,
+        "database_path": GEOIP_DB_PATH if GEOIP_AVAILABLE else None,
+        "tests": results
+    })
+
+@app.route('/')
+def index():
+    """Welcome page"""
+    return f"""
+    <html>
+    <body style="background:#0f172a; color:white; padding:30px; font-family:Arial;">
+        <h1>🚀 Aishat's Dashboard Backend</h1>
+        <p>Connected to Elasticsearch on port 443</p>
+        <p><strong>GeoIP Status:</strong> {'✅ ENABLED' if GEOIP_AVAILABLE else '❌ DISABLED'}</p>
+        
+        <p>Endpoints:</p>
+        <ul>
+            <li><code>GET /api/events</code> - Get security events (with locations)</li>
+            <li><code>GET /api/threat-map</code> - Get threat map data</li>
+            <li><code>GET /api/events/geolocated</code> - Get geolocated events</li>
+            <li><code>POST /api/events</code> - Add new event</li>
+            <li><code>GET /api/stats</code> - Dashboard statistics</li>
+            <li><code>GET /api/test-geoip</code> - Test GeoIP</li>
+            <li><code>GET /api/blocked</code> - Blocked IPs</li>
+            <li><code>POST /api/block</code> - Block an IP</li>
+            <li><code>POST /api/unblock</code> - Unblock an IP</li>
+        </ul>
+        
+        <p><strong>Frontend:</strong> Use with Aishat's HTML dashboard</p>
+        <p><strong>Database:</strong> Grishab's Elasticsearch (port 443)</p>
+        <p><strong>GeoIP:</strong> {'Ready for threat mapping' if GEOIP_AVAILABLE else 'Install geoip2 and download database'}</p>
+    </body>
+    </html>
+    """
+
+# ===================== MAIN =====================
+if __name__ == '__main__':
+    print("\n" + "="*60)
+    print("🚀 AISHAT'S DASHBOARD BACKEND SERVER")
+    print("="*60)
+    print(f"📡 Elasticsearch: {ELASTICSEARCH_HOST}")
+    print(f"🗺️  GeoIP: {'✅ ENABLED' if GEOIP_AVAILABLE else '❌ DISABLED'}")
+    if GEOIP_AVAILABLE:
+        print(f"   Database: {GEOIP_DB_PATH}")
+    else:
+        print("   Install: pip install geoip2")
+        print("   Download: sudo wget -O /usr/share/geoip/GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb")
+    print(f"🌐 API Server: http://0.0.0.0:5000")
+    print("="*60)
+    print("NEW Endpoints for Threat Map:")
+    print("  GET  /api/threat-map     - Threat map visualization data")
+    print("  GET  /api/events/geolocated - Events with coordinates")
+    print("  GET  /api/test-geoip     - Test GeoIP functionality")
+    print("="*60)
+    print("Standard Endpoints:")
+    print("  GET  /api/events         - Get security events")
+    print("  POST /api/events         - Add new attack")
+    print("  GET  /api/stats          - Dashboard statistics")
+    print("  GET  /api/blocked        - Blocked IPs")
+    print("  POST /api/block          - Block IP")
+    print("  POST /api/unblock        - Unblock IP")
+    print("="*60)
+    
+    try:
+        app.run(host='0.0.0.0', port=5000, debug=False)
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        print("Trying port 5001...")
+        app.run(host='0.0.0.0', port=5001, debug=False)
