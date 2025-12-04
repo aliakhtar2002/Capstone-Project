@@ -1,122 +1,29 @@
-from flask import Flask, jsonify, request
-from datetime import datetime
-import requests
-import json
+from flask import Flask, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
 
-# In-memory storage
-detections = []
-security_alerts = []
-
-@app.route('/api/security-events')
-def get_security_events():
-    return jsonify({
-        'status': 'success',
-        'count': len(detections),
-        'data': detections[-20:]  # Last 20 events
-    })
-
-@app.route('/api/detection-stats')
-def get_detection_stats():
-    stats = {
-        'total_detections': len(detections),
-        'unique_ips': len(set(d['ip_address'] for d in detections)),
-        'detections_by_type': {}
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://3.145.146.136:8080"],
+        "methods": ["*"],
+        "allow_headers": ["*"],
+        "supports_credentials": True
     }
-    for d in detections:
-        t = d['event_type']
-        stats['detections_by_type'][t] = stats['detections_by_type'].get(t, 0) + 1
-    return jsonify(stats)
-
-@app.route('/api/add-detection', methods=['POST'])
-def add_detection():
-    data = request.json
-    detection = {
-        'id': len(detections) + 1,
-        'event_type': data.get('event_type', 'unknown'),
-        'ip_address': data.get('ip_address', '0.0.0.0'),
-        'severity': data.get('severity', 'medium'),
-        'timestamp': datetime.now().isoformat()
-    }
-    detections.append(detection)
-    security_alerts.append({
-        "event_type": detection["event_type"],
-        "source_ip": detection.get("ip_address", "0.0.0.0"),
-        "description": data.get("description", ""),
-        "timestamp": detection["timestamp"]
-    })
-    security_alerts.append({
-        'event_type': detection['event_type'],
-        'source_ip': detection.get('ip_address', '0.0.0.0'),
-        'description': data.get('description', ''),
-        'timestamp': detection['timestamp']
-    })
-    
-    # Log the detection
-    print(f"[API] Detection added: {detection}")
-    
-    return jsonify({
-        'status': 'success',
-        'message': 'Detection added',
-        'detection_id': detection['id']
-    })
-
-@app.route('/api/health')
-def health_check():
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'detections_count': len(detections),
-        'blocked_ips_count': 0,
-        'alerts_count': len(security_alerts)
-    })
-
-@app.route('/api/dashboard/stats')
-def dashboard_stats():
-    return jsonify({
-        'total_detections': len(detections),
-        'alerts_generated': len(security_alerts),
-        'high_severity_alerts': len([a for a in security_alerts if a.get('severity') in ['high', 'critical']]),
-        'latest_activity': detections[-5:] if detections else []
-    })
-
-@app.route('/api/detections', methods=['GET', 'POST'])
-def handle_detections():
-    if request.method == 'POST':
-        return add_detection()
-    else:
-        return jsonify({
-            'detections': detections[-50:],
-            'count': len(detections)
-        })
-
-@app.route('/api/automated-response/block-ip', methods=['POST'])
-def block_ip():
-    data = request.json
-    ip = data.get('ip')
-    reason = data.get('reason', 'unknown')
-    # In production, would call AWS WAF or iptables
-    return jsonify({
-        'status': 'success',
-        'message': f'IP {ip} blocked',
-        'reason': reason
-    })
-
-@app.route('/api/blocked-ips')
-def get_blocked_ips():
-    return jsonify({
-        'blocked_ips': [],
-        'count': 0
-    })
+})
 
 @app.route('/api/security-alerts')
-def get_security_alerts():
-    """AAL8 - Alert monitoring endpoint"""
+def alerts():
     return jsonify({
-        'alerts': security_alerts[-10:],  # Last 10 alerts
-        'total_alerts': len(security_alerts),
-        'high_severity_alerts': len([a for a in security_alerts if a.get('severity') in ['high', 'critical']])
+        "alerts": [{"id": 1, "message": "Test alert"}],
+        "status": "aishat_allowed"
+    })
+
+@app.route('/api/data')
+def data():
+    return jsonify({
+        "metrics": {"cpu": 45, "memory": 78},
+        "events": ["event1", "event2"]
     })
 
 if __name__ == '__main__':
