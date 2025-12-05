@@ -1,0 +1,11 @@
+name: CI Pipeline
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Security Scan
+        run: python security_scanner.py
+      - name: Docker Build Test
+        run: docker-compose build
