@@ -6,16 +6,26 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask flask-cors requests
+          
       - name: Start API service
         run: |
-          if [ -f "requirements.txt" ]; then
-            pip install -r requirements.txt
-          fi
           python app.py &
-          sleep 5  # Give API time to start
+          sleep 7  # Give API time to start
+          curl -f http://localhost:5000/api/health || echo "API health check failed"
           
       - name: Security Scan
         run: python security_scanner.py
         
       - name: Docker Build Test
-        run: docker-compose build
+        run: |
+          docker-compose --version
+          docker-compose build
