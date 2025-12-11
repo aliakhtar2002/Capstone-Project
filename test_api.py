@@ -82,6 +82,6 @@ if __name__ == "__main__":
     print(f"Test Results: {passed}/{len(tests)} tests passed")
     
     if passed == len(tests):
-        print("🎉 All tests passed!")
+        print(" All tests passed!")
     else:
         print(" Some tests failed")
