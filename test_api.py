@@ -6,7 +6,7 @@ BASE_URL = "http://localhost:5000"
 def test_health_endpoint():
     try:
         print("Testing /api/health...")
-        response = requests.get(f"{BASE_URL}/api/health")
+        response = requests.get(f"{http://3.145.146.136:5000}/api/health")
         if response.status_code == 200:
             print("Health endpoint working")
             return True
@@ -25,7 +25,7 @@ def test_detection_post():
             "ip_address": "192.168.1.100",
             "severity": "high"
         }
-        response = requests.post(f"{BASE_URL}/api/detections", json=test_data)
+        response = requests.post(f"{http://3.145.146.136:5000}/api/detections", json=test_data)
         if response.status_code == 200:
             print(" Detection POST working")
             return True
@@ -39,7 +39,7 @@ def test_detection_post():
 def test_security_events():
     try:
         print("Testing /api/security-events...")
-        response = requests.get(f"{BASE_URL}/api/security-events")
+        response = requests.get(f"{http://3.145.146.136:5000}/api/security-events")
         if response.status_code == 200:
             print("Security events endpoint working")
             return True
@@ -53,7 +53,7 @@ def test_security_events():
 def test_dashboard_stats():
     try:
         print("Testing /api/dashboard/stats...")
-        response = requests.get(f"{BASE_URL}/api/dashboard/stats")
+        response = requests.get(f"{http://3.145.146.136:5000}/api/dashboard/stats")
         if response.status_code == 200:
             print(" Dashboard stats working")
             return True
