@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberPulse SOC Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { background: #0a0e1c; color: #e0e0e0; font-family: 'Inter', sans-serif; padding: 20px; }
+        .stat-card { background: #141b2b; border: 1px solid #2a3650; border-radius: 10px; padding: 20px; }
+        .stat-value { font-size: 2.5rem; color: #00d4ff; }
+        .btn-cyber { background: #00d4ff; color: #0a0e1c; border: none; padding: 10px 20px; border-radius: 6px; }
+        .table th { background: #1e2738; color: #8b98b0; }
+        .severity-critical { color: #ff4d4d; }
+        .severity-high { color: #ffaa00; }
+        .severity-medium { color: #00d4ff; }
+    </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 style="color: #00d4ff;">CyberPulse SOC Dashboard</h1>
+        <p>API Status: <span id="apiStatus">Checking...</span></p>
+        
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Total Attacks</div>
+                    <div class="stat-value" id="totalAttacks">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Critical</div>
+                    <div class="stat-value" style="color: #ff4d4d;" id="criticalCount">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">High</div>
+                    <div class="stat-value" style="color: #ffaa00;" id="highCount">0</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Blocked IPs</div>
+                    <div class="stat-value" id="blockedCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="stat-card">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="d-flex justify-content-between mb-3">
+                <h3>Recent Alerts</h3>
+                <div>
+                    <button class="btn-cyber me-2" onclick="exportPDF()">Export PDF</button>
+                    <button class="btn-cyber" onclick="manualRefresh()">Refresh</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark">
+                    <thead>
+                        <tr>
+                            <th>Time (Chicago)</th>
+                            <th>IP</th>
+                            <th>Attack Type</th>
+                            <th>Severity</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = "http://3.145.146.136:5000";
+        let allAlerts = [];
+
+        function formatChicagoTime(utcString) {
+            if (!utcString) return new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+            return new Date(utcString).toLocaleString('en-US', { 
+                timeZone: 'America/Chicago',
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/security-alerts`);
+                const data = await response.json();
+                allAlerts = data.alerts || [];
+                updateDashboard();
+                document.getElementById('apiStatus').innerHTML = '✅ Online';
+            } catch (error) {
+                document.getElementById('apiStatus').innerHTML = '❌ Offline';
+            }
+        }
+
+        function updateDashboard() {
+            const tbody = document.getElementById('alertsTable');
+            tbody.innerHTML = '';
+            
+            let critical = 0, high = 0;
+            
+            allAlerts.slice(0, 20).forEach(alert => {
+                const detection = alert.detection || {};
+                const type = detection.event_type || alert.event_type || 'unknown';
+                const ip = detection.ip_address || alert.source_ip || '0.0.0.0';
+                const severity = alert.severity || 'medium';
+                
+                if (severity === 'critical') critical++;
+                if (severity === 'high') high++;
+                
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${formatChicagoTime(alert.timestamp)}</td>
+                    <td>${ip}</td>
+                    <td>${type}</td>
+                    <td class="severity-${severity}">${severity.toUpperCase()}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="blockIP('${ip}')">Block</button></td>
+                `;
+            });
+            
+            document.getElementById('totalAttacks').textContent = allAlerts.length;
+            document.getElementById('criticalCount').textContent = critical;
+            document.getElementById('highCount').textContent = high;
+            
+            // Simple charts
+            updateCharts();
+        }
+
+        function updateCharts() {
+            // Timeline chart
+            const ctx1 = document.getElementById('timelineChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: [...Array(24).keys()].map(h => h + ':00'),
+                    datasets: [{
+                        label: 'Attacks',
+                        data: Array(24).fill(3),
+                        borderColor: '#00d4ff'
+                    }]
+                }
+            });
+            
+            // Pie chart
+            const ctx2 = document.getElementById('pieChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['SQLi', 'Brute Force', 'XSS', 'Other'],
+                    datasets: [{
+                        data: [45, 25, 15, 15],
+                        backgroundColor: ['#ff4d4d', '#ffaa00', '#00d4ff', '#8b98b0']
+                    }]
+                }
+            });
+        }
+
+        async function blockIP(ip) {
+            await fetch(`${API_BASE}/api/automated-response/block-ip`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip_address: ip, reason: 'Manual block' })
+            });
+            alert(`Blocked ${ip}`);
+        }
+
+function exportPDF() {
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(20);
+        doc.setTextColor(0, 212, 255);
+        doc.text(CyberPulse
+            const doc = new jsPDF();
+            doc.text('CyberPulse Report', 20, 20);
+            doc.text(`Generated: ${new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })}`, 20, 30);
+            doc.save('report.pdf');
+        }
+
+        function manualRefresh() { fetchData(); }
+
+        // Initial load
+        fetchData();
+        setInterval(fetchData, 10000);
+    </script>
+</body>
+</html>
