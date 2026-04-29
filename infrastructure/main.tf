@@ -44,7 +44,7 @@ resource "aws_security_group" "soc_sg" {
     to_port = 5000
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "SOC API (Ali's API)"
+    description = "SOC API - Ali API"
   }
   
   # Port 8080 - Additional service

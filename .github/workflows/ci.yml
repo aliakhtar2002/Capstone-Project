@@ -6,6 +6,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Security Scan
-        run: python security_scanner.py
+        run: python3 security_scanner.py
       - name: Docker Build Test
         run: docker-compose build

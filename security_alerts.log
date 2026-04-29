@@ -1,0 +1,13 @@
+{"id": 1, "title": "Unauthorized Access", "description": "Multiple failed logins from IP 192.168.1.100", "severity": "HIGH", "source_ip": "192.168.1.100", "timestamp": "2025-12-05T22:45:17.342565", "status": "NEW"}
+{"id": 2, "title": "Port Scan", "description": "Port scanning detected on network", "severity": "MEDIUM", "source_ip": "10.0.0.50", "timestamp": "2025-12-05T22:45:17.342768", "status": "NEW"}
+{"id": 4, "title": "Malware Detected", "description": "Malicious file found on server", "severity": "CRITICAL", "source_ip": "203.0.113.5", "timestamp": "2025-12-05T22:45:17.343131", "status": "NEW"}
+[IMMEDIATE] {"id": 1, "event_type": "test", "source_ip": "192.168.1.100", "description": "Test alert from script", "severity": "HIGH", "timestamp": "2025-12-05T22:51:56.953968", "status": "active"}
+[IMMEDIATE] {"id": 1, "event_type": "test", "source_ip": "192.168.1.100", "description": "Test alert", "severity": "HIGH", "timestamp": "2025-12-05T23:18:42.339213", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-05T23:19:37.812779", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-05T23:19:38.008021", "status": "active"}
+[IMMEDIATE] {"id": 2, "event_type": "unauthorized", "source_ip": "10.0.0.99", "description": "Failed login attempts", "severity": "HIGH", "timestamp": "2025-12-05T23:19:54.239391", "status": "active"}
+[SECURITY] {"id": 3, "event_type": "scan", "source_ip": "192.168.1.50", "description": "Port scan detected", "severity": "MEDIUM", "timestamp": "2025-12-05T23:19:54.242970", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-10T22:55:55.915191", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-10T22:55:56.134448", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-11T15:25:03.775568", "status": "active"}
+[LOG] {"id": 1, "event_type": "system_start", "source_ip": "127.0.0.1", "description": "SOC System started", "severity": "INFO", "timestamp": "2025-12-11T15:25:04.157659", "status": "active"}

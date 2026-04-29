@@ -66,7 +66,7 @@ class DetectionEngine:
         return alerts
 
     def detect_brute_force(self, event):
-        if True:  # Always check DVWA requests
+        if event.get('event_type') not in ['failed_login', 'authentication_failure']:
             return None
 
         source_ip = event.get('source_ip', 'unknown')

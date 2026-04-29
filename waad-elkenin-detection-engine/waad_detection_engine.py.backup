@@ -7,17 +7,18 @@ from datetime import datetime
 
 API_URL = "http://3.145.146.136:5000/api/add-detection"
 
+        print(f"🔍 SENDING: {event_type} from {source_ip}")
 def send_alert(event_type, source_ip, description, severity="medium"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data = {
         "event_type": event_type,
         "source_ip": source_ip,
-        "ip_address": source_ip,
+        "ip_address": source_ip,    # CRITICAL: Victoria expects this!
         "description": f"{timestamp} - {description}",
         "severity": severity
     }
 
-    print(f"[API] Sending alert: {event_type} from {source_ip}")
+        print(f"[API] Sending alert: {event_type} from {source_ip}")
 
     try:
         print(f"📦 DATA: {data}")
@@ -66,7 +67,7 @@ class DetectionEngine:
         return alerts
 
     def detect_brute_force(self, event):
-        if True:  # Always check DVWA requests
+        if event.get('event_type') not in ['failed_login', 'authentication_failure']:
             return None
 
         source_ip = event.get('source_ip', 'unknown')
