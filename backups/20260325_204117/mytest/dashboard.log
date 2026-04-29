@@ -1,0 +1,4 @@
+nohup: ignoring input
+35.146.250.121 - - [05/Mar/2026 13:10:02] "GET /soc-dashboard.html HTTP/1.1" 200 -
+35.146.250.121 - - [05/Mar/2026 13:10:03] code 404, message File not found
+35.146.250.121 - - [05/Mar/2026 13:10:03] "GET /favicon.ico HTTP/1.1" 404 -

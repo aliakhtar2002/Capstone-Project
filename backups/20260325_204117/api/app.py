@@ -248,7 +248,8 @@ def add_detection():
         'db_error': detection.get('db_error'),
         'automated_action_taken': detection.get('automated_action', {}).get('status') if detection.get('automated_action') else None,
         'alert_generated': detection['severity'] in ['high', 'critical', 'medium']
-    })    
+    })
+    
 
     # AAL8 & AALSF4 - Automated alerting based on severity
 
@@ -524,4 +525,4 @@ def block_malicious_ip(ip_address, reason):
 
 if __name__ == '__main__':
 
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
