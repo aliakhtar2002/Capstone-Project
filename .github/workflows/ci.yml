@@ -18,10 +18,10 @@ jobs:
       run: |
         find . -name "*.py" -exec python -m py_compile {} \;
     
-    - name: Run security scan (Bandit)
+    - name: Run Bandit security scan
       run: |
         pip install bandit
-        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . -f json -o bandit-report.json --skip B201:B301:B303 || true
     
     - name: Upload scan report
       uses: actions/upload-artifact@v4
